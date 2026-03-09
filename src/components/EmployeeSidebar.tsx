@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { GoalStatus, GoalTimeframe } from '@/types/employee';
 
 export function EmployeeSidebar() {
+  const navigate = useNavigate();
   const { employees, selectedEmployeeId, setSelectedEmployee, teamGoals, addTeamGoal, updateTeamGoal, deleteTeamGoal, actionItems } = useStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: '', description: '', status: 'on-track' as GoalStatus, progress: 0, timeframe: 'quarterly' as GoalTimeframe, quarter: '' });

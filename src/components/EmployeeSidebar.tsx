@@ -164,7 +164,7 @@ export function EmployeeSidebar() {
                 {overdueCount}
               </span>
             )}
-          </h3>
+          </button>
         </div>
         
         {overdueCount > 0 && (

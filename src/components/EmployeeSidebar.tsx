@@ -11,9 +11,21 @@ import { useState } from 'react';
 import { GoalStatus, GoalTimeframe } from '@/types/employee';
 
 export function EmployeeSidebar() {
-  const { employees, selectedEmployeeId, setSelectedEmployee, teamGoals, addTeamGoal, updateTeamGoal, deleteTeamGoal } = useStore();
+  const { employees, selectedEmployeeId, setSelectedEmployee, teamGoals, addTeamGoal, updateTeamGoal, deleteTeamGoal, actionItems } = useStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: '', description: '', status: 'on-track' as GoalStatus, progress: 0, timeframe: 'quarterly' as GoalTimeframe, quarter: '' });
+
+  // Calculate action items summary
+  const allActionItems = actionItems.map(item => {
+    if (item.status !== 'completed' && item.dueDate && isPast(parseISO(item.dueDate))) {
+      return { ...item, status: 'overdue' as const };
+    }
+    return item;
+  });
+
+  const pendingItems = allActionItems.filter(item => item.status !== 'completed').slice(0, 5);
+  const overdueItems = allActionItems.filter(item => item.status === 'overdue');
+  const overdueCount = overdueItems.length;
 
   return (
     <aside className="w-64 min-h-screen border-r border-border bg-sidebar flex flex-col">

@@ -106,6 +106,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => { saveToStorage('em-actions', actionItems); }, [actionItems]);
   useEffect(() => { saveToStorage('em-modules', moduleConfigs); }, [moduleConfigs]);
   useEffect(() => { saveToStorage('em-selected', selectedEmployeeId); }, [selectedEmployeeId]);
+  useEffect(() => { saveToStorage('em-team-goals', teamGoals); }, [teamGoals]);
 
   const now = () => new Date().toISOString();
 

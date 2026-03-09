@@ -112,13 +112,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const store: StoreState = {
     employees, goals, oneOnOnes, achievements, performanceNotes,
-    careerGrowth, skills, moodCheckins, actionItems, moduleConfigs, selectedEmployeeId,
+    careerGrowth, skills, moodCheckins, actionItems, moduleConfigs, selectedEmployeeId, teamGoals,
 
     setSelectedEmployee: setSelectedEmployeeId,
 
     addGoal: useCallback((goal) => setGoals(prev => [...prev, { ...goal, id: generateId(), createdAt: now(), updatedAt: now() }]), []),
     updateGoal: useCallback((id, updates) => setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: now() } : g)), []),
     deleteGoal: useCallback((id) => setGoals(prev => prev.filter(g => g.id !== id)), []),
+
+    addTeamGoal: useCallback((goal) => setTeamGoals(prev => [...prev, { ...goal, id: generateId(), createdAt: now(), updatedAt: now() }]), []),
+    updateTeamGoal: useCallback((id, updates) => setTeamGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: now() } : g)), []),
+    deleteTeamGoal: useCallback((id) => setTeamGoals(prev => prev.filter(g => g.id !== id)), []),
 
     addOneOnOne: useCallback((entry) => setOneOnOnes(prev => [...prev, { ...entry, id: generateId(), createdAt: now() }]), []),
     updateOneOnOne: useCallback((id, updates) => setOneOnOnes(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)), []),

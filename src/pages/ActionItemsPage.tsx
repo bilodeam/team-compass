@@ -109,11 +109,6 @@ export default function ActionItemsPage() {
                               </Badge>
                             </div>
                             
-                            {item.description && (
-                              <p className="text-sm text-muted-foreground mb-3">
-                                {item.description}
-                              </p>
-                            )}
                             
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span>

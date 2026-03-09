@@ -180,7 +180,7 @@ export default function ActionItemsPage() {
                               <h3 className="font-medium text-muted-foreground line-through">
                                 {item.title}
                               </h3>
-                              <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-500/20">
+                              <Badge variant="outline" className={getStatusColor('completed')}>
                                 <Check className="h-3 w-3 mr-1" />
                                 Completed
                               </Badge>

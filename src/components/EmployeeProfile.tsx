@@ -28,9 +28,38 @@ const MODULE_COMPONENTS: Record<ModuleType, React.ComponentType<{ employeeId: st
 };
 
 export function EmployeeProfile() {
-  const { employees, selectedEmployeeId, getModuleConfigs, actionItems } = useStore();
+  const { employees, selectedEmployeeId, getModuleConfigs, actionItems, updateEmployee } = useStore();
   const employee = employees.find(e => e.id === selectedEmployeeId);
   const [activeTab, setActiveTab] = useState<ModuleType>('goals');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    role: '',
+    team: '',
+    currentLevel: '',
+    startDate: '',
+    targetLevel: ''
+  });
+
+  useEffect(() => {
+    if (employee) {
+      setEditForm({
+        name: employee.name,
+        role: employee.role,
+        team: employee.team,
+        currentLevel: employee.currentLevel,
+        startDate: employee.startDate,
+        targetLevel: employee.targetLevel
+      });
+    }
+  }, [employee]);
+
+  const handleSave = () => {
+    if (employee) {
+      updateEmployee(employee.id, editForm);
+      setEditOpen(false);
+    }
+  };
 
   if (!employee) {
     return (

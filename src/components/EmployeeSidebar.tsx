@@ -37,7 +37,7 @@ export function EmployeeSidebar() {
         <p className="text-xs text-muted-foreground mt-1">6 direct reports</p>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="p-3 space-y-1">
         {employees.map((emp) => {
           const isActive = emp.id === selectedEmployeeId;
           const initials = emp.name.split(' ').map(n => n[0]).join('');
@@ -65,6 +65,143 @@ export function EmployeeSidebar() {
           );
         })}
       </nav>
+
+      <div className="border-t border-border p-3">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5">
+            <Target className="h-3.5 w-3.5 text-sidebar-primary" />
+            Team Goals
+          </h3>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Team Goal</DialogTitle>
+                <DialogDescription>Create a new goal for the entire team</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="title">Title</Label>
+                  <Input id="title" value={newGoal.title} onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })} />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea id="description" value={newGoal.description} onChange={(e) => setNewGoal({ ...newGoal, description: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="timeframe">Timeframe</Label>
+                    <Select value={newGoal.timeframe} onValueChange={(v) => setNewGoal({ ...newGoal, timeframe: v as GoalTimeframe })}>
+                      <SelectTrigger id="timeframe">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="annual">Annual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="quarter">Quarter (optional)</Label>
+                    <Input id="quarter" placeholder="Q1 2026" value={newGoal.quarter} onChange={(e) => setNewGoal({ ...newGoal, quarter: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={() => {
+                  addTeamGoal(newGoal);
+                  setNewGoal({ title: '', description: '', status: 'on-track', progress: 0, timeframe: 'quarterly', quarter: '' });
+                  setDialogOpen(false);
+                }}>Add Goal</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <div className="space-y-1.5 max-h-32 overflow-y-auto">
+          {teamGoals.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">No team goals yet</p>
+          ) : (
+            teamGoals.map((goal) => {
+              const statusColors = {
+                'on-track': 'bg-green-500/10 text-green-700',
+                'at-risk': 'bg-yellow-500/10 text-yellow-700',
+                'done': 'bg-blue-500/10 text-blue-700',
+                'blocked': 'bg-red-500/10 text-red-700',
+              };
+              return (
+                <div key={goal.id} className="bg-sidebar-accent/30 rounded p-2 text-xs">
+                  <div className="font-medium text-sidebar-foreground truncate">{goal.title}</div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusColors[goal.status]}`}>
+                      {goal.status}
+                    </span>
+                    <span className="text-muted-foreground">{goal.progress}%</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="border-t border-border p-3">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5">
+            <CheckSquare className="h-3.5 w-3.5 text-sidebar-primary" />
+            Action Items
+            {overdueCount > 0 && (
+              <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full">
+                {overdueCount}
+              </span>
+            )}
+          </h3>
+        </div>
+        
+        {overdueCount > 0 && (
+          <div className="flex items-center gap-1.5 p-2 rounded-md bg-destructive/10 border border-destructive/20 mb-2">
+            <AlertCircle className="h-3 w-3 text-destructive shrink-0" />
+            <span className="text-[10px] text-destructive font-medium">
+              {overdueCount} overdue item{overdueCount > 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+        
+        <div className="space-y-1.5 max-h-32 overflow-y-auto">
+          {pendingItems.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">No pending items</p>
+          ) : (
+            pendingItems.map((item) => {
+              const employee = employees.find(emp => emp.id === item.employeeId);
+              const isOverdue = item.status === 'overdue';
+              return (
+                <div key={item.id} className={`bg-sidebar-accent/30 rounded p-2 text-xs ${isOverdue ? 'border border-destructive/30' : ''}`}>
+                  <div className={`font-medium truncate ${isOverdue ? 'text-destructive' : 'text-sidebar-foreground'}`}>
+                    {item.title}
+                  </div>
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground">
+                    <span>{employee?.name || 'Unknown'}</span>
+                    <span>{item.owner === 'manager' ? 'You' : 'Employee'}</span>
+                  </div>
+                  {item.dueDate && (
+                    <div className={`text-[10px] mt-0.5 ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      Due {format(parseISO(item.dueDate), 'MMM d')}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+          {actionItems.filter(item => item.status !== 'completed').length > 5 && (
+            <p className="text-[10px] text-muted-foreground italic">
+              +{actionItems.filter(item => item.status !== 'completed').length - 5} more items
+            </p>
+          )}
+        </div>
+      </div>
 
       <div className="border-t border-border p-3">
         <div className="flex items-center justify-between mb-2">

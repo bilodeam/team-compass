@@ -61,6 +61,23 @@ export function EmployeeProfile() {
     }
   };
 
+  const employeeId = employee?.id;
+
+  const configs = useMemo(() => {
+    if (!employeeId) return [];
+    return getModuleConfigs(employeeId)
+      .filter(m => m.enabled)
+      .sort((a, b) => a.order - b.order);
+  }, [employeeId, getModuleConfigs]);
+
+  // Set default active tab to first enabled module (avoid setState during render)
+  useEffect(() => {
+    if (!employeeId) return;
+    if (configs.length > 0 && !configs.some(c => c.type === activeTab)) {
+      setActiveTab(configs[0].type);
+    }
+  }, [employeeId, configs, activeTab]);
+
   if (!employee) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -68,18 +85,6 @@ export function EmployeeProfile() {
       </div>
     );
   }
-
-  const configs = useMemo(
-    () => getModuleConfigs(employee.id).filter(m => m.enabled).sort((a, b) => a.order - b.order),
-    [employee.id, getModuleConfigs]
-  );
-
-  // Set default active tab to first enabled module (avoid setState during render)
-  useEffect(() => {
-    if (configs.length > 0 && !configs.some(c => c.type === activeTab)) {
-      setActiveTab(configs[0].type);
-    }
-  }, [configs, activeTab]);
 
   const initials = employee.name.split(' ').map(n => n[0]).join('');
   const overdueActions = actionItems.filter(a => a.employeeId === employee.id && a.status !== 'completed' && a.dueDate && new Date(a.dueDate) < new Date()).length;

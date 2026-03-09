@@ -1,5 +1,6 @@
 import { useStore } from '@/store/useStore';
-import { Users, Target, Plus } from 'lucide-react';
+import { Users, Target, Plus, CheckSquare, AlertCircle } from 'lucide-react';
+import { format, isPast, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -10,9 +11,21 @@ import { useState } from 'react';
 import { GoalStatus, GoalTimeframe } from '@/types/employee';
 
 export function EmployeeSidebar() {
-  const { employees, selectedEmployeeId, setSelectedEmployee, teamGoals, addTeamGoal, updateTeamGoal, deleteTeamGoal } = useStore();
+  const { employees, selectedEmployeeId, setSelectedEmployee, teamGoals, addTeamGoal, updateTeamGoal, deleteTeamGoal, actionItems } = useStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: '', description: '', status: 'on-track' as GoalStatus, progress: 0, timeframe: 'quarterly' as GoalTimeframe, quarter: '' });
+
+  // Calculate action items summary
+  const allActionItems = actionItems.map(item => {
+    if (item.status !== 'completed' && item.dueDate && isPast(parseISO(item.dueDate))) {
+      return { ...item, status: 'overdue' as const };
+    }
+    return item;
+  });
+
+  const pendingItems = allActionItems.filter(item => item.status !== 'completed').slice(0, 5);
+  const overdueItems = allActionItems.filter(item => item.status === 'overdue');
+  const overdueCount = overdueItems.length;
 
   return (
     <aside className="w-64 min-h-screen border-r border-border bg-sidebar flex flex-col">
@@ -24,7 +37,7 @@ export function EmployeeSidebar() {
         <p className="text-xs text-muted-foreground mt-1">6 direct reports</p>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="p-3 space-y-1">
         {employees.map((emp) => {
           const isActive = emp.id === selectedEmployeeId;
           const initials = emp.name.split(' ').map(n => n[0]).join('');
@@ -108,7 +121,7 @@ export function EmployeeSidebar() {
             </DialogContent>
           </Dialog>
         </div>
-        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+        <div className="space-y-1.5 max-h-32 overflow-y-auto">
           {teamGoals.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No team goals yet</p>
           ) : (
@@ -134,6 +147,62 @@ export function EmployeeSidebar() {
           )}
         </div>
       </div>
+
+      <div className="border-t border-border p-3">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5">
+            <CheckSquare className="h-3.5 w-3.5 text-sidebar-primary" />
+            Action Items
+            {overdueCount > 0 && (
+              <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full">
+                {overdueCount}
+              </span>
+            )}
+          </h3>
+        </div>
+        
+        {overdueCount > 0 && (
+          <div className="flex items-center gap-1.5 p-2 rounded-md bg-destructive/10 border border-destructive/20 mb-2">
+            <AlertCircle className="h-3 w-3 text-destructive shrink-0" />
+            <span className="text-[10px] text-destructive font-medium">
+              {overdueCount} overdue item{overdueCount > 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+        
+        <div className="space-y-1.5 max-h-32 overflow-y-auto">
+          {pendingItems.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">No pending items</p>
+          ) : (
+            pendingItems.map((item) => {
+              const employee = employees.find(emp => emp.id === item.employeeId);
+              const isOverdue = item.status === 'overdue';
+              return (
+                <div key={item.id} className={`bg-sidebar-accent/30 rounded p-2 text-xs ${isOverdue ? 'border border-destructive/30' : ''}`}>
+                  <div className={`font-medium truncate ${isOverdue ? 'text-destructive' : 'text-sidebar-foreground'}`}>
+                    {item.title}
+                  </div>
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground">
+                    <span>{employee?.name || 'Unknown'}</span>
+                    <span>{item.owner === 'manager' ? 'You' : 'Employee'}</span>
+                  </div>
+                  {item.dueDate && (
+                    <div className={`text-[10px] mt-0.5 ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      Due {format(parseISO(item.dueDate), 'MMM d')}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+          {actionItems.filter(item => item.status !== 'completed').length > 5 && (
+            <p className="text-[10px] text-muted-foreground italic">
+              +{actionItems.filter(item => item.status !== 'completed').length - 5} more items
+            </p>
+          )}
+        </div>
+      </div>
+
 
       <div className="p-4 border-t border-border">
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Private · Local Only</p>

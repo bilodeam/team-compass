@@ -1,5 +1,6 @@
 import { useStore } from '@/store/useStore';
-import { Users, Target, Plus } from 'lucide-react';
+import { Users, Target, Plus, CheckSquare, AlertCircle } from 'lucide-react';
+import { format, isPast, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';

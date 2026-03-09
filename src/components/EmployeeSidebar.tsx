@@ -180,7 +180,7 @@ export function EmployeeSidebar() {
         
         <div className="space-y-1.5 max-h-32 overflow-y-auto">
           {pendingItems.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No pending items</p>
+            <p className="text-xs text-muted-foreground">No pending items</p>
           ) : (
             pendingItems.map((item) => {
               const employee = employees.find(emp => emp.id === item.employeeId);

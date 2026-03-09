@@ -92,6 +92,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [actionItems, setActionItems] = useState<ActionItem[]>(() => loadFromStorage('em-actions', []));
   const [moduleConfigs, setModuleConfigs] = useState<Record<string, ModuleConfig[]>>(() => loadFromStorage('em-modules', {}));
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(() => loadFromStorage('em-selected', SEED_EMPLOYEES[0]?.id || null));
+  const [teamGoals, setTeamGoals] = useState<TeamGoal[]>(() => loadFromStorage('em-team-goals', []));
 
   // Persist all state
   useEffect(() => { saveToStorage('em-employees', employees); }, [employees]);

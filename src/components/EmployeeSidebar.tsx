@@ -1,6 +1,7 @@
 import { useStore } from '@/store/useStore';
 import { Users, Target, Plus, CheckSquare, AlertCircle } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -153,7 +154,7 @@ export function EmployeeSidebar() {
         </div>
       </div>
 
-      <div className="border-t border-border p-3">
+      <div className={cn("p-3", teamGoals.length > 0 && "border-t border-border")}>
         <div className="flex items-center justify-between mb-2">
           <button 
             onClick={() => navigate('/actions')}
@@ -204,7 +205,7 @@ export function EmployeeSidebar() {
             })
           )}
           {actionItems.filter(item => item.status !== 'completed').length > 5 && (
-            <p className="text-[10px] text-muted-foreground italic">
+            <p className="text-[10px] text-muted-foreground">
               +{actionItems.filter(item => item.status !== 'completed').length - 5} more items
             </p>
           )}
@@ -212,7 +213,7 @@ export function EmployeeSidebar() {
       </div>
 
 
-      <div className="p-4 border-t border-border">
+      <div className={cn("p-4", pendingItems.length > 0 && "border-t border-border")}>
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Private · Local Only</p>
       </div>
     </aside>

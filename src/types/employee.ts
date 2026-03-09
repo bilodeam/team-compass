@@ -129,6 +129,19 @@ export interface ModuleConfig {
   order: number;
 }
 
+// Team Goals (shared across all employees)
+export interface TeamGoal {
+  id: string;
+  title: string;
+  description: string;
+  status: GoalStatus;
+  progress: number; // 0-100
+  timeframe: GoalTimeframe;
+  quarter?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const DEFAULT_MODULES: ModuleConfig[] = [
   { type: 'goals', label: 'Goal Tracker', emoji: '🎯', enabled: true, order: 0 },
   { type: 'one-on-ones', label: '1-on-1 Recaps', emoji: '📅', enabled: true, order: 1 },

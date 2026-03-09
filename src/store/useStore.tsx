@@ -1,7 +1,7 @@
 import { createContext, useContext, useCallback, useState, useEffect, ReactNode } from 'react';
 import {
   Employee, Goal, OneOnOne, Achievement, PerformanceNote,
-  CareerGrowth, Skill, MoodCheckin, ActionItem, ModuleConfig, DEFAULT_MODULES
+  CareerGrowth, Skill, MoodCheckin, ActionItem, ModuleConfig, DEFAULT_MODULES, TeamGoal
 } from '@/types/employee';
 import { SEED_EMPLOYEES } from '@/data/seedEmployees';
 
@@ -34,6 +34,7 @@ interface StoreState {
   actionItems: ActionItem[];
   moduleConfigs: Record<string, ModuleConfig[]>;
   selectedEmployeeId: string | null;
+  teamGoals: TeamGoal[];
 
   setSelectedEmployee: (id: string) => void;
 
@@ -41,6 +42,10 @@ interface StoreState {
   addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateGoal: (id: string, updates: Partial<Goal>) => void;
   deleteGoal: (id: string) => void;
+
+  addTeamGoal: (goal: Omit<TeamGoal, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateTeamGoal: (id: string, updates: Partial<TeamGoal>) => void;
+  deleteTeamGoal: (id: string) => void;
 
   addOneOnOne: (entry: Omit<OneOnOne, 'id' | 'createdAt'>) => void;
   updateOneOnOne: (id: string, updates: Partial<OneOnOne>) => void;
@@ -87,6 +92,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [actionItems, setActionItems] = useState<ActionItem[]>(() => loadFromStorage('em-actions', []));
   const [moduleConfigs, setModuleConfigs] = useState<Record<string, ModuleConfig[]>>(() => loadFromStorage('em-modules', {}));
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(() => loadFromStorage('em-selected', SEED_EMPLOYEES[0]?.id || null));
+  const [teamGoals, setTeamGoals] = useState<TeamGoal[]>(() => loadFromStorage('em-team-goals', []));
 
   // Persist all state
   useEffect(() => { saveToStorage('em-employees', employees); }, [employees]);
@@ -100,18 +106,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => { saveToStorage('em-actions', actionItems); }, [actionItems]);
   useEffect(() => { saveToStorage('em-modules', moduleConfigs); }, [moduleConfigs]);
   useEffect(() => { saveToStorage('em-selected', selectedEmployeeId); }, [selectedEmployeeId]);
+  useEffect(() => { saveToStorage('em-team-goals', teamGoals); }, [teamGoals]);
 
   const now = () => new Date().toISOString();
 
   const store: StoreState = {
     employees, goals, oneOnOnes, achievements, performanceNotes,
-    careerGrowth, skills, moodCheckins, actionItems, moduleConfigs, selectedEmployeeId,
+    careerGrowth, skills, moodCheckins, actionItems, moduleConfigs, selectedEmployeeId, teamGoals,
 
     setSelectedEmployee: setSelectedEmployeeId,
 
     addGoal: useCallback((goal) => setGoals(prev => [...prev, { ...goal, id: generateId(), createdAt: now(), updatedAt: now() }]), []),
     updateGoal: useCallback((id, updates) => setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: now() } : g)), []),
     deleteGoal: useCallback((id) => setGoals(prev => prev.filter(g => g.id !== id)), []),
+
+    addTeamGoal: useCallback((goal) => setTeamGoals(prev => [...prev, { ...goal, id: generateId(), createdAt: now(), updatedAt: now() }]), []),
+    updateTeamGoal: useCallback((id, updates) => setTeamGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: now() } : g)), []),
+    deleteTeamGoal: useCallback((id) => setTeamGoals(prev => prev.filter(g => g.id !== id)), []),
 
     addOneOnOne: useCallback((entry) => setOneOnOnes(prev => [...prev, { ...entry, id: generateId(), createdAt: now() }]), []),
     updateOneOnOne: useCallback((id, updates) => setOneOnOnes(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)), []),

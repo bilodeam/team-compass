@@ -128,7 +128,7 @@ export function EmployeeSidebar() {
         </div>
         <div className="space-y-1.5 max-h-32 overflow-y-auto">
           {teamGoals.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No team goals yet</p>
+            <p className="text-xs text-muted-foreground">No team goals yet</p>
           ) : (
             teamGoals.map((goal) => {
               const statusColors = {

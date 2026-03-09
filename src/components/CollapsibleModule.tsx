@@ -20,7 +20,7 @@ export function CollapsibleModule({ emoji, title, children, defaultOpen = true, 
       >
         <div className="flex items-center gap-2.5">
           <span className="text-lg">{emoji}</span>
-          <h2 className="font-heading text-base text-card-foreground">{title}</h2>
+          <h2 className="font-heading text-base text-card-foreground whitespace-nowrap">{title}</h2>
           {count !== undefined && (
             <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{count}</span>
           )}

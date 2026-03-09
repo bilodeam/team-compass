@@ -68,10 +68,13 @@ export function EmployeeSidebar() {
 
       <div className="border-t border-border p-3">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5">
+          <button 
+            onClick={() => navigate('/goals')}
+            className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
+          >
             <Target className="h-3.5 w-3.5 text-sidebar-primary" />
             Team Goals
-          </h3>
+          </button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0">

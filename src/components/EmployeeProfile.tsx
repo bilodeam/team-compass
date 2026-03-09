@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { GoalTracker } from '@/components/modules/GoalTracker';
 import { OneOnOneRecaps } from '@/components/modules/OneOnOneRecaps';
@@ -10,6 +10,11 @@ import { MoodCheckins } from '@/components/modules/MoodCheckins';
 import { ActionItems } from '@/components/modules/ActionItems';
 import { ModuleType } from '@/types/employee';
 import { format } from 'date-fns';
+import { Pencil } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const MODULE_COMPONENTS: Record<ModuleType, React.ComponentType<{ employeeId: string }>> = {
   'goals': GoalTracker,

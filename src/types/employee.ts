@@ -112,6 +112,7 @@ export interface ActionItem {
   employeeId: string;
   title: string;
   owner: ActionOwner;
+  assignedTo?: string; // Specific person assigned to this action
   dueDate: string;
   status: ActionStatus;
   sourceOneOnOneId?: string;

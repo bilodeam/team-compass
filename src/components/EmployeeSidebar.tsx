@@ -40,6 +40,17 @@ export function EmployeeSidebar() {
         <p className="text-xs text-muted-foreground mt-1">6 direct reports</p>
       </div>
 
+      <div className="p-3 border-b border-border">
+        <Button 
+          variant="default" 
+          className="w-full justify-start gap-2" 
+          onClick={() => navigate('/team')}
+        >
+          <Target className="h-4 w-4" />
+          Team Overview
+        </Button>
+      </div>
+
       <nav className="p-3 space-y-1">
         {employees.map((emp) => {
           const isActive = emp.id === selectedEmployeeId;

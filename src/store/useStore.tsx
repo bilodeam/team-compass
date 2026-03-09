@@ -34,6 +34,7 @@ interface StoreState {
   actionItems: ActionItem[];
   moduleConfigs: Record<string, ModuleConfig[]>;
   selectedEmployeeId: string | null;
+  teamGoals: TeamGoal[];
 
   setSelectedEmployee: (id: string) => void;
 
@@ -41,6 +42,10 @@ interface StoreState {
   addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateGoal: (id: string, updates: Partial<Goal>) => void;
   deleteGoal: (id: string) => void;
+
+  addTeamGoal: (goal: Omit<TeamGoal, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateTeamGoal: (id: string, updates: Partial<TeamGoal>) => void;
+  deleteTeamGoal: (id: string) => void;
 
   addOneOnOne: (entry: Omit<OneOnOne, 'id' | 'createdAt'>) => void;
   updateOneOnOne: (id: string, updates: Partial<OneOnOne>) => void;

@@ -36,9 +36,9 @@ export default function ActionItemsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-500/10 text-green-700 border-green-500/20';
+      case 'completed': return 'bg-secondary/80 text-secondary-foreground border-secondary';
       case 'overdue': return 'bg-destructive/10 text-destructive border-destructive/20';
-      case 'in-progress': return 'bg-blue-500/10 text-blue-700 border-blue-500/20';
+      case 'in-progress': return 'bg-primary/10 text-primary border-primary/20';
       default: return 'bg-muted text-muted-foreground border-border';
     }
   };
@@ -109,7 +109,6 @@ export default function ActionItemsPage() {
                               </Badge>
                             </div>
                             
-                            
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span>
                                 <strong>Assigned to:</strong> {employee?.name || 'Unknown'}
@@ -159,10 +158,10 @@ export default function ActionItemsPage() {
           {completedItems.length > 0 && (
             <Card>
               <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Check className="h-5 w-5 text-primary" />
-                Completed Items ({completedItems.length})
-              </CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Check className="h-5 w-5 text-primary" />
+                  Completed Items ({completedItems.length})
+                </CardTitle>
                 <CardDescription>
                   Recently completed action items
                 </CardDescription>

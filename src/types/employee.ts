@@ -34,6 +34,9 @@ export interface OneOnOne {
   id: string;
   employeeId: string;
   date: string;
+  // Agenda (pre-meeting)
+  agendaItems: string[];
+  // Recap (post-meeting)
   wentWell: string;
   concerns: string;
   managerNotes: string;

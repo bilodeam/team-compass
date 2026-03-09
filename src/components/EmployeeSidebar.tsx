@@ -1,8 +1,18 @@
 import { useStore } from '@/store/useStore';
-import { Users } from 'lucide-react';
+import { Users, Target, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState } from 'react';
+import { GoalStatus, GoalTimeframe } from '@/types/employee';
 
 export function EmployeeSidebar() {
-  const { employees, selectedEmployeeId, setSelectedEmployee } = useStore();
+  const { employees, selectedEmployeeId, setSelectedEmployee, teamGoals, addTeamGoal, updateTeamGoal, deleteTeamGoal } = useStore();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newGoal, setNewGoal] = useState({ title: '', description: '', status: 'on-track' as GoalStatus, progress: 0, timeframe: 'quarterly' as GoalTimeframe, quarter: '' });
 
   return (
     <aside className="w-64 min-h-screen border-r border-border bg-sidebar flex flex-col">

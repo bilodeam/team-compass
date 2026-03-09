@@ -159,10 +159,10 @@ export default function ActionItemsPage() {
           {completedItems.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Check className="h-5 w-5 text-green-600" />
-                  Completed Items ({completedItems.length})
-                </CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Check className="h-5 w-5 text-primary" />
+                Completed Items ({completedItems.length})
+              </CardTitle>
                 <CardDescription>
                   Recently completed action items
                 </CardDescription>

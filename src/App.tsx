@@ -7,6 +7,7 @@ import { StoreProvider } from "./store/useStore";
 import Index from "./pages/Index";
 import GoalsPage from "./pages/GoalsPage";
 import ActionItemsPage from "./pages/ActionItemsPage";
+import TeamDashboard from "./pages/TeamDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

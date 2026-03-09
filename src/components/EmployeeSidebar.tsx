@@ -157,10 +157,10 @@ export function EmployeeSidebar() {
         <div className="flex items-center justify-between mb-2">
           <button 
             onClick={() => navigate('/actions')}
-            className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
+            className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
           >
             <CheckSquare className="h-3.5 w-3.5 text-sidebar-primary" />
-            Action Items
+            Key Actions
             {overdueCount > 0 && (
               <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full">
                 {overdueCount}

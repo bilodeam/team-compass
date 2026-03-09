@@ -72,7 +72,7 @@ export function EmployeeSidebar() {
         <div className="flex items-center justify-between mb-2">
           <button 
             onClick={() => navigate('/goals')}
-            className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
+            className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
           >
             <Target className="h-3.5 w-3.5 text-sidebar-primary" />
             Team Goals
@@ -128,7 +128,7 @@ export function EmployeeSidebar() {
         </div>
         <div className="space-y-1.5 max-h-32 overflow-y-auto">
           {teamGoals.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No team goals yet</p>
+            <p className="text-xs text-muted-foreground">No team goals yet</p>
           ) : (
             teamGoals.map((goal) => {
               const statusColors = {
@@ -157,10 +157,10 @@ export function EmployeeSidebar() {
         <div className="flex items-center justify-between mb-2">
           <button 
             onClick={() => navigate('/actions')}
-            className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
+            className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
           >
             <CheckSquare className="h-3.5 w-3.5 text-sidebar-primary" />
-            Action Items
+            Key Actions
             {overdueCount > 0 && (
               <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full">
                 {overdueCount}
@@ -180,7 +180,7 @@ export function EmployeeSidebar() {
         
         <div className="space-y-1.5 max-h-32 overflow-y-auto">
           {pendingItems.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No pending items</p>
+            <p className="text-xs text-muted-foreground">No pending items</p>
           ) : (
             pendingItems.map((item) => {
               const employee = employees.find(emp => emp.id === item.employeeId);

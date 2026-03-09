@@ -150,5 +150,5 @@ export const DEFAULT_MODULES: ModuleConfig[] = [
   { type: 'performance-notes', label: 'Performance Notes', emoji: '📝', enabled: true, order: 4 },
   { type: 'career-growth', label: 'Career Growth', emoji: '📈', enabled: true, order: 5 },
   { type: 'skill-matrix', label: 'Skill Matrix', emoji: '🧩', enabled: true, order: 6 },
-  { type: 'mood-checkins', label: 'Mood & Sentiment', emoji: '💬', enabled: true, order: 7 },
+  { type: 'mood-checkins', label: 'Mood & Sentiment', emoji: '💬', enabled: false, order: 7 },
 ];

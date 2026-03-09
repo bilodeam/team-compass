@@ -153,7 +153,10 @@ export function EmployeeSidebar() {
 
       <div className="border-t border-border p-3">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5">
+          <button 
+            onClick={() => navigate('/actions')}
+            className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
+          >
             <CheckSquare className="h-3.5 w-3.5 text-sidebar-primary" />
             Action Items
             {overdueCount > 0 && (

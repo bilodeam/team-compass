@@ -146,9 +146,9 @@ export const DEFAULT_MODULES: ModuleConfig[] = [
   { type: 'goals', label: 'Goal Tracker', emoji: '🎯', enabled: true, order: 0 },
   { type: 'action-items', label: 'Action Items', emoji: '✅', enabled: true, order: 1 },
   { type: 'one-on-ones', label: '1-on-1 Recaps', emoji: '📅', enabled: true, order: 2 },
-  { type: 'achievements', label: 'Achievements', emoji: '🏆', enabled: true, order: 3 },
-  { type: 'performance-notes', label: 'Performance Notes', emoji: '📝', enabled: true, order: 4 },
-  { type: 'career-growth', label: 'Career Growth', emoji: '📈', enabled: true, order: 5 },
-  { type: 'skill-matrix', label: 'Skill Matrix', emoji: '🧩', enabled: true, order: 6 },
+  { type: 'performance-notes', label: 'Performance Notes', emoji: '📝', enabled: true, order: 3 },
+  { type: 'career-growth', label: 'Career Growth', emoji: '📈', enabled: true, order: 4 },
+  { type: 'skill-matrix', label: 'Skill Matrix', emoji: '🧩', enabled: true, order: 5 },
+  { type: 'achievements', label: 'Achievements', emoji: '🏆', enabled: true, order: 6 },
   { type: 'mood-checkins', label: 'Mood & Sentiment', emoji: '💬', enabled: false, order: 7 },
 ];

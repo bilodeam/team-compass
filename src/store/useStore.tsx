@@ -1,7 +1,7 @@
 import { createContext, useContext, useCallback, useState, useEffect, ReactNode } from 'react';
 import {
   Employee, Goal, OneOnOne, Achievement, PerformanceNote,
-  CareerGrowth, Skill, MoodCheckin, ActionItem, ModuleConfig, DEFAULT_MODULES
+  CareerGrowth, Skill, MoodCheckin, ActionItem, ModuleConfig, DEFAULT_MODULES, TeamGoal
 } from '@/types/employee';
 import { SEED_EMPLOYEES } from '@/data/seedEmployees';
 

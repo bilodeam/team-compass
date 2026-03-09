@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { CollapsibleModule } from '@/components/CollapsibleModule';
-import { Plus, Trash2, Pin, Search, MessageSquare, ClipboardList, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Search, MessageSquare, ClipboardList, X } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { OneOnOneEntry } from '@/components/modules/oneOnOnes/OneOnOneEntry';
 
 export function OneOnOneRecaps({ employeeId }: { employeeId: string }) {
   const { oneOnOnes, addOneOnOne, updateOneOnOne, deleteOneOnOne } = useStore();

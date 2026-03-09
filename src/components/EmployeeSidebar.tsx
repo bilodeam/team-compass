@@ -72,7 +72,7 @@ export function EmployeeSidebar() {
         <div className="flex items-center justify-between mb-2">
           <button 
             onClick={() => navigate('/goals')}
-            className="text-xs font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
+            className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
           >
             <Target className="h-3.5 w-3.5 text-sidebar-primary" />
             Team Goals

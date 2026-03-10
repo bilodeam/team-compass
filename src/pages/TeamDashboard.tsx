@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Target, CheckSquare, Users, Calendar, AlertCircle, Pencil, Home, Plus, UserPlus, TrendingUp } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ActionStatus, GoalStatus } from '@/types/employee';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -20,13 +20,13 @@ const AVATAR_COLORS = [
 
 const STATUS_CONFIG: Record<GoalStatus, { label: string; color: string; bar: string }> = {
   'on-track': { label: 'On Track', color: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20', bar: 'bg-emerald-500' },
-  'at-risk':  { label: 'At Risk',  color: 'bg-amber-500/10 text-amber-700 border-amber-500/20',   bar: 'bg-amber-500'   },
-  'done':     { label: 'Done',     color: 'bg-blue-500/10 text-blue-700 border-blue-500/20',       bar: 'bg-blue-500'    },
-  'blocked':  { label: 'Blocked',  color: 'bg-red-500/10 text-red-700 border-red-500/20',          bar: 'bg-red-500'     },
+  'at-risk':  { label: 'At Risk',  color: 'bg-amber-500/10 text-amber-700 border-amber-500/20',      bar: 'bg-amber-500'   },
+  'done':     { label: 'Done',     color: 'bg-blue-500/10 text-blue-700 border-blue-500/20',          bar: 'bg-blue-500'    },
+  'blocked':  { label: 'Blocked',  color: 'bg-red-500/10 text-red-700 border-red-500/20',             bar: 'bg-red-500'     },
 };
 
 export default function TeamDashboard() {
-  const { employees, goals, teamGoals, actionItems, updateActionItem, addEmployee, setSelectedEmployee } = useStore();
+  const { employees, goals, actionItems, updateActionItem, addEmployee, setSelectedEmployee } = useStore();
   const navigate = useNavigate();
   const [editingAction, setEditingAction] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ assignedTo: '', status: '' as ActionStatus });
@@ -45,21 +45,57 @@ export default function TeamDashboard() {
   const pendingActions = allActionItems.filter(item => item.status !== 'completed');
   const overdueActions = allActionItems.filter(item => item.status === 'overdue');
 
-  // All individual goals across all employees
-  const allGoals = goals.filter(g => statusFilter === 'all' || g.status === statusFilter);
+  // Group goals by normalized title — merge duplicates into one card with multiple owners
+  const groupedGoals = useMemo(() => {
+    const map = new Map<string, {
+      title: string;
+      description: string;
+      timeframe: string;
+      quarter: string;
+      status: GoalStatus;
+      avgProgress: number;
+      owners: { employeeId: string; progress: number; status: GoalStatus }[];
+    }>();
 
-  // Stats
-  const totalGoals = goals.length;
-  const onTrackCount = goals.filter(g => g.status === 'on-track').length;
-  const atRiskCount = goals.filter(g => g.status === 'at-risk').length;
-  const doneCount = goals.filter(g => g.status === 'done').length;
-  const blockedCount = goals.filter(g => g.status === 'blocked').length;
-  const avgProgress = totalGoals > 0 ? Math.round(goals.reduce((s, g) => s + g.progress, 0) / totalGoals) : 0;
+    goals.forEach(goal => {
+      const key = goal.title.trim().toLowerCase();
+      if (map.has(key)) {
+        const existing = map.get(key)!;
+        existing.owners.push({ employeeId: goal.employeeId, progress: goal.progress, status: goal.status });
+        // Recalculate avg progress
+        existing.avgProgress = Math.round(existing.owners.reduce((s, o) => s + o.progress, 0) / existing.owners.length);
+        // Worst status wins: blocked > at-risk > on-track > done
+        const priority: GoalStatus[] = ['blocked', 'at-risk', 'on-track', 'done'];
+        const worstIdx = Math.min(...existing.owners.map(o => priority.indexOf(o.status)));
+        existing.status = priority[worstIdx] ?? existing.status;
+      } else {
+        map.set(key, {
+          title: goal.title,
+          description: goal.description,
+          timeframe: goal.timeframe,
+          quarter: goal.quarter || '',
+          status: goal.status,
+          avgProgress: goal.progress,
+          owners: [{ employeeId: goal.employeeId, progress: goal.progress, status: goal.status }],
+        });
+      }
+    });
 
-  const handleEditAction = (actionId: string, assignedTo?: string, status?: ActionStatus) => {
-    setEditingAction(actionId);
-    setEditForm({ assignedTo: assignedTo || '', status: status || 'pending' });
-  };
+    return Array.from(map.values());
+  }, [goals]);
+
+  const filteredGoals = statusFilter === 'all'
+    ? groupedGoals
+    : groupedGoals.filter(g => g.status === statusFilter);
+
+  const totalGoals = groupedGoals.length;
+  const onTrackCount = groupedGoals.filter(g => g.status === 'on-track').length;
+  const atRiskCount = groupedGoals.filter(g => g.status === 'at-risk').length;
+  const doneCount = groupedGoals.filter(g => g.status === 'done').length;
+  const blockedCount = groupedGoals.filter(g => g.status === 'blocked').length;
+  const avgProgress = totalGoals > 0
+    ? Math.round(groupedGoals.reduce((s, g) => s + g.avgProgress, 0) / totalGoals)
+    : 0;
 
   const handleSaveAction = () => {
     if (editingAction) {
@@ -90,9 +126,9 @@ export default function TeamDashboard() {
 
   const getActionStatusColor = (status: string) => {
     switch (status) {
-      case 'on-track': case 'completed': return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20';
+      case 'completed': return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20';
       case 'at-risk': return 'bg-amber-500/10 text-amber-700 border-amber-500/20';
-      case 'done': case 'in-progress': return 'bg-blue-500/10 text-blue-700 border-blue-500/20';
+      case 'in-progress': return 'bg-blue-500/10 text-blue-700 border-blue-500/20';
       case 'blocked': case 'overdue': return 'bg-red-500/10 text-red-700 border-red-500/20';
       default: return 'bg-muted text-muted-foreground border-border';
     }
@@ -195,7 +231,7 @@ export default function TeamDashboard() {
           </CardContent>
         </Card>
 
-        {/* Team Goals — individual goals from all employees */}
+        {/* Team Goals — grouped by title, stacked avatars */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between flex-wrap gap-3">
@@ -204,8 +240,6 @@ export default function TeamDashboard() {
                 <CardTitle>Team Goals</CardTitle>
                 <Badge variant="outline">{totalGoals}</Badge>
               </div>
-
-              {/* Stats row */}
               <div className="flex items-center gap-2 flex-wrap">
                 {totalGoals > 0 && (
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border rounded-full px-3 py-1">
@@ -213,72 +247,133 @@ export default function TeamDashboard() {
                     Avg {avgProgress}% complete
                   </div>
                 )}
-                <button onClick={() => setStatusFilter('all')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'all' ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:border-foreground/40'}`}>All</button>
-                <button onClick={() => setStatusFilter('on-track')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'on-track' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-border text-muted-foreground hover:border-emerald-400'}`}>On Track {onTrackCount > 0 && `(${onTrackCount})`}</button>
-                <button onClick={() => setStatusFilter('at-risk')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'at-risk' ? 'bg-amber-500 text-white border-amber-500' : 'border-border text-muted-foreground hover:border-amber-400'}`}>At Risk {atRiskCount > 0 && `(${atRiskCount})`}</button>
-                <button onClick={() => setStatusFilter('blocked')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'blocked' ? 'bg-red-600 text-white border-red-600' : 'border-border text-muted-foreground hover:border-red-400'}`}>Blocked {blockedCount > 0 && `(${blockedCount})`}</button>
-                <button onClick={() => setStatusFilter('done')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'done' ? 'bg-blue-600 text-white border-blue-600' : 'border-border text-muted-foreground hover:border-blue-400'}`}>Done {doneCount > 0 && `(${doneCount})`}</button>
+                {(['all', 'on-track', 'at-risk', 'blocked', 'done'] as const).map(f => {
+                  const count = f === 'all' ? totalGoals : f === 'on-track' ? onTrackCount : f === 'at-risk' ? atRiskCount : f === 'blocked' ? blockedCount : doneCount;
+                  const active = statusFilter === f;
+                  const colors: Record<string, string> = {
+                    'all': active ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:border-foreground/40',
+                    'on-track': active ? 'bg-emerald-600 text-white border-emerald-600' : 'border-border text-muted-foreground hover:border-emerald-400',
+                    'at-risk': active ? 'bg-amber-500 text-white border-amber-500' : 'border-border text-muted-foreground hover:border-amber-400',
+                    'blocked': active ? 'bg-red-600 text-white border-red-600' : 'border-border text-muted-foreground hover:border-red-400',
+                    'done': active ? 'bg-blue-600 text-white border-blue-600' : 'border-border text-muted-foreground hover:border-blue-400',
+                  };
+                  const labels: Record<string, string> = { 'all': 'All', 'on-track': 'On Track', 'at-risk': 'At Risk', 'blocked': 'Blocked', 'done': 'Done' };
+                  return (
+                    <button key={f} onClick={() => setStatusFilter(f)} className={`text-xs px-3 py-1 rounded-full border transition-colors ${colors[f]}`}>
+                      {labels[f]}{count > 0 && f !== 'all' ? ` (${count})` : ''}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {allGoals.length === 0 ? (
+            {filteredGoals.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
                 {statusFilter === 'all' ? 'No goals added yet — add them in each employee profile' : `No ${statusFilter} goals`}
               </p>
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {allGoals.map((goal) => {
-                  const emp = employees.find(e => e.id === goal.employeeId);
+                {filteredGoals.map((goal) => {
                   const cfg = STATUS_CONFIG[goal.status];
+                  const ownerEmployees = goal.owners
+                    .map(o => employees.find(e => e.id === o.employeeId))
+                    .filter(Boolean);
+                  const isShared = goal.owners.length > 1;
+
                   return (
-                    <button
-                      key={goal.id}
-                      onClick={() => emp && handleEmployeeClick(emp.id)}
+                    <div
+                      key={goal.title}
                       className="group text-left border border-border rounded-xl p-4 space-y-3 hover:border-primary/40 hover:shadow-sm transition-all bg-card"
                     >
-                      {/* Owner + status */}
+                      {/* Owner avatars + status */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          {emp && (
-                            <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                              style={{ backgroundColor: emp.avatarColor }}
-                            >
-                              {getInitials(emp.name)}
-                            </div>
-                          )}
-                          <span className="text-xs text-muted-foreground truncate">{emp?.name || 'Unknown'}</span>
+                          {/* Stacked avatars */}
+                          <div className="flex -space-x-2">
+                            {ownerEmployees.slice(0, 5).map((emp, i) => emp && (
+                              <button
+                                key={emp.id}
+                                onClick={() => handleEmployeeClick(emp.id)}
+                                title={emp.name}
+                                style={{ zIndex: ownerEmployees.length - i }}
+                                className="relative w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ring-2 ring-background transition-transform hover:scale-110 hover:z-10 shrink-0"
+                              >
+                                <div
+                                  className="w-full h-full rounded-full flex items-center justify-center"
+                                  style={{ backgroundColor: emp.avatarColor }}
+                                >
+                                  {getInitials(emp.name)}
+                                </div>
+                              </button>
+                            ))}
+                            {ownerEmployees.length > 5 && (
+                              <div className="w-7 h-7 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] text-muted-foreground font-medium">
+                                +{ownerEmployees.length - 5}
+                              </div>
+                            )}
+                          </div>
+                          {/* Names — show all if 2, else "X people" */}
+                          <span className="text-xs text-muted-foreground truncate">
+                            {ownerEmployees.length === 1
+                              ? ownerEmployees[0]?.name
+                              : ownerEmployees.length === 2
+                              ? `${ownerEmployees[0]?.name} & ${ownerEmployees[1]?.name}`
+                              : `${ownerEmployees.length} people`}
+                          </span>
                         </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium shrink-0 ${cfg.color}`}>
-                          {cfg.label}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {isShared && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                              Shared
+                            </span>
+                          )}
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${cfg.color}`}>
+                            {cfg.label}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Title */}
+                      {/* Title + description */}
                       <div>
-                        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
-                          {goal.title}
-                        </p>
+                        <p className="text-sm font-semibold text-foreground leading-snug">{goal.title}</p>
                         {goal.description && (
                           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{goal.description}</p>
                         )}
                       </div>
 
-                      {/* Progress bar */}
+                      {/* Progress */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                           <span>{goal.timeframe}{goal.quarter ? ` · ${goal.quarter}` : ''}</span>
-                          <span className="font-medium text-foreground">{goal.progress}%</span>
+                          <span className="font-medium text-foreground">
+                            {isShared ? `avg ${goal.avgProgress}%` : `${goal.avgProgress}%`}
+                          </span>
                         </div>
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${cfg.bar}`}
-                            style={{ width: `${goal.progress}%` }}
-                          />
+                          <div className={`h-full rounded-full transition-all ${cfg.bar}`} style={{ width: `${goal.avgProgress}%` }} />
                         </div>
+                        {/* Per-person progress for shared goals */}
+                        {isShared && (
+                          <div className="flex items-center gap-2 flex-wrap mt-1">
+                            {goal.owners.map(o => {
+                              const emp = employees.find(e => e.id === o.employeeId);
+                              if (!emp) return null;
+                              return (
+                                <button
+                                  key={o.employeeId}
+                                  onClick={() => handleEmployeeClick(emp.id)}
+                                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: emp.avatarColor }} />
+                                  {emp.name.split(' ')[0]}: {o.progress}%
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -326,7 +421,7 @@ export default function TeamDashboard() {
                           <Badge className={getActionStatusColor(action.status)}>{action.status}</Badge>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm" onClick={() => handleEditAction(action.id, action.assignedTo, action.status)} className="h-8 w-8 p-0">
+                              <Button variant="ghost" size="sm" onClick={() => { setEditingAction(action.id); setEditForm({ assignedTo: action.assignedTo || '', status: action.status }); }} className="h-8 w-8 p-0">
                                 <Pencil className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>

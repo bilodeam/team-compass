@@ -87,7 +87,7 @@ export function EmployeeSidebar() {
       <div className="p-5 border-b border-border">
         <h1 className="font-heading text-xl text-sidebar-foreground flex items-center gap-2">
           <Users className="h-5 w-5 text-sidebar-primary" />
-          Team Compass
+          Pit Crew
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
           {isManager ? 'Manager view' : currentEmployee?.name || 'Employee view'}

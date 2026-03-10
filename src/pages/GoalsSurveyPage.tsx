@@ -16,18 +16,19 @@ const BIN_ID = '69aa37c443b1c97be9b83a7a';
 const MANAGER_PASSWORD = 'manager123'; // ← change this to your real password
 
 const PROJECTS = [
-  { id: 'p1',  title: 'API Platform Modernization' },
-  { id: 'p2',  title: 'Developer Experience Tooling' },
-  { id: 'p3',  title: 'Data Pipeline Reliability' },
-  { id: 'p4',  title: 'Frontend Component Library' },
-  { id: 'p5',  title: 'Observability & Monitoring' },
-  { id: 'p6',  title: 'Security & Compliance Hardening' },
-  { id: 'p7',  title: 'Mobile Performance Optimization' },
-  { id: 'p8',  title: 'ML Infrastructure' },
-  { id: 'p9',  title: 'Search & Discovery' },
-  { id: 'p10', title: 'Customer Onboarding Automation' },
-  { id: 'p11', title: 'Cost Optimization & FinOps' },
-  { id: 'p12', title: 'Real-time Collaboration Features' },
+  { id: 'p1',  title: 'Improve Vehicles Star Ratings' },
+  { id: 'p2',  title: 'Vehicles Training & Development' },
+  { id: 'p3',  title: 'Define & Enforce T&P ICR-DSP-CR Process' },
+  { id: 'p4',  title: 'Revisit PD Process by PDC & Complexity' },
+  { id: 'p5',  title: 'Product Development Innovation' },
+  { id: 'p6',  title: 'Value Engineering (VE)' },
+  { id: 'p7',  title: 'Vehicles Community' },
+  { id: 'p8',  title: 'D3 Parts Library Database' },
+  { id: 'p9',  title: 'Refine MOA Handoff Process' },
+  { id: 'p10', title: 'Sample Comment Tracking' },
+  { id: 'p11', title: 'Reduce Post-FPR Changes and Tool Modifications' },
+  { id: 'p12', title: 'Diecast Performance within Playsets' },
+  { id: 'p13', title: 'AI' },
 ];
 
 const RATING_LABELS: Record<number, string> = {

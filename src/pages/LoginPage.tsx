@@ -115,7 +115,7 @@ export default function LoginPage() {
                   {/* Manager tile */}
                   <button
                     type="button"
-                    onClick={() => setPicked({ id: 'manager', name: 'Manager', role: 'Team Lead', avatar_color: 'hsl(240, 50%, 50%)', email: EMPLOYEE_EMAILS['manager'] })}
+                    onClick={() => setPicked({ id: 'manager', name: 'Maxence', role: 'Manager', avatar_color: 'hsl(240, 50%, 50%)', email: EMPLOYEE_EMAILS['manager'] })}
                     className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed border-border bg-muted/30 hover:border-primary/50 hover:shadow-sm transition-all"
                   >
                     <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm bg-primary">

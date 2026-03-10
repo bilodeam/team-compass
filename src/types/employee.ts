@@ -33,6 +33,7 @@ export interface OneOnOne {
   id: string;
   employeeId: string;
   date: string;
+  agendaItems: string[];
   wentWell: string;
   concerns: string;
   managerNotes: string;

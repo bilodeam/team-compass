@@ -25,7 +25,7 @@ function mapTeamGoal(r: any): TeamGoal {
   return { id: r.id, title: r.title, description: r.description, status: r.status, progress: r.progress, timeframe: r.timeframe, quarter: r.quarter, createdAt: r.created_at, updatedAt: r.updated_at };
 }
 function mapOneOnOne(r: any): OneOnOne {
-  return { id: r.id, employeeId: r.employee_id, date: r.date, wentWell: r.went_well, concerns: r.concerns, managerNotes: r.manager_notes, followUps: r.follow_ups, pinned: r.pinned, createdAt: r.created_at };
+  return { id: r.id, employeeId: r.employee_id, date: r.date, agendaItems: r.agenda_items || [], wentWell: r.went_well, concerns: r.concerns, managerNotes: r.manager_notes, followUps: r.follow_ups, pinned: r.pinned, createdAt: r.created_at };
 }
 function mapAchievement(r: any): Achievement {
   return { id: r.id, employeeId: r.employee_id, title: r.title, description: r.description, date: r.date, impact: r.impact, tags: r.tags, createdAt: r.created_at };
@@ -247,7 +247,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.from('one_on_ones').insert({
         id, employee_id: entry.employeeId, date: entry.date, went_well: entry.wentWell,
         concerns: entry.concerns, manager_notes: entry.managerNotes,
-        follow_ups: entry.followUps, pinned: entry.pinned, created_at: now(),
+        follow_ups: entry.followUps, pinned: entry.pinned,
+        agenda_items: entry.agendaItems || [],
+        created_at: now(),
       }).select().single();
       if (data) setOneOnOnes(prev => [...prev, mapOneOnOne(data)]);
     }, []),
@@ -260,6 +262,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...(updates.managerNotes !== undefined && { manager_notes: updates.managerNotes }),
         ...(updates.followUps !== undefined && { follow_ups: updates.followUps }),
         ...(updates.pinned !== undefined && { pinned: updates.pinned }),
+        ...(updates.agendaItems !== undefined && { agenda_items: updates.agendaItems }),
       }).eq('id', id).select().single();
       if (data) setOneOnOnes(prev => prev.map(e => e.id === id ? mapOneOnOne(data) : e));
     }, []),

@@ -17,7 +17,7 @@ interface EmployeeOption {
 
 // Map employee id to their auth email
 const EMPLOYEE_EMAILS: Record<string, string> = {
-  'manager': 'manager@teamcompass.com',
+  'emp-0': 'manager@teamcompass.com',
   'emp-1': 'andrew@teamcompass.com',
   'emp-2': 'anjali@teamcompass.com',
   'emp-3': 'binh@teamcompass.com',
@@ -43,7 +43,13 @@ export default function LoginPage() {
         .select('id, name, role, avatar_color')
         .order('id');
       if (data) {
-        setEmployees(data.map(e => ({
+        // Sort so emp-0 (Maxence/manager) appears last
+        const sorted = [...data].sort((a, b) => {
+          if (a.id === 'emp-0') return 1;
+          if (b.id === 'emp-0') return -1;
+          return a.id.localeCompare(b.id);
+        });
+        setEmployees(sorted.map(e => ({
           ...e,
           email: EMPLOYEE_EMAILS[e.id] || '',
         })));
@@ -57,9 +63,7 @@ export default function LoginPage() {
     if (!picked || !password.trim()) return;
     setLoading(true);
     setError('');
-    const email = picked.id === 'manager'
-      ? EMPLOYEE_EMAILS['manager']
-      : EMPLOYEE_EMAILS[picked.id];
+    const email = EMPLOYEE_EMAILS[picked.id];
     const err = await signIn(email, password.trim());
     if (err) {
       setError('Wrong password, try again');
@@ -69,7 +73,7 @@ export default function LoginPage() {
 
   const initials = (name: string) => name.split(' ').map(n => n[0]).join('');
 
-  // ── Step 1: Pick your name ──────────────────────────────────────────────
+  // Step 1: Pick your name
   if (!picked) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -111,21 +115,6 @@ export default function LoginPage() {
                       </div>
                     </button>
                   ))}
-
-                  {/* Manager tile */}
-                  <button
-                    type="button"
-                    onClick={() => setPicked({ id: 'manager', name: 'Maxence', role: 'Manager', avatar_color: 'hsl(240, 50%, 50%)', email: EMPLOYEE_EMAILS['manager'] })}
-                    className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-dashed border-border bg-muted/30 hover:border-primary/50 hover:shadow-sm transition-all"
-                  >
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm bg-primary">
-                      M
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm font-semibold">Maxence</div>
-                      <div className="text-xs text-muted-foreground">Manager</div>
-                    </div>
-                  </button>
                 </div>
               )}
             </CardContent>
@@ -139,7 +128,7 @@ export default function LoginPage() {
     );
   }
 
-  // ── Step 2: Enter password ───────────────────────────────────────────────
+  // Step 2: Enter password
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">

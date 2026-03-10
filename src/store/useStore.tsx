@@ -16,7 +16,7 @@ function now() {
 
 // ─── Map snake_case DB rows to camelCase app types ───────────────────────────
 function mapEmployee(r: any): Employee {
-  return { id: r.id, name: r.name, role: r.role, team: r.team, avatarColor: r.avatar_color, startDate: r.start_date, currentLevel: r.current_level, targetLevel: r.target_level };
+  return { id: r.id, name: r.name, role: r.role, avatarColor: r.avatar_color, startDate: r.start_date, currentLevel: r.current_level, targetLevel: r.target_level };
 }
 function mapGoal(r: any): Goal {
   return { id: r.id, employeeId: r.employee_id, title: r.title, description: r.description, status: r.status, progress: r.progress, timeframe: r.timeframe, quarter: r.quarter, linkedOKR: r.linked_okr, createdAt: r.created_at, updatedAt: r.updated_at };
@@ -124,7 +124,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [teamGoals, setTeamGoals] = useState<TeamGoal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load all data from Supabase when profile is ready
   useEffect(() => {
     if (authLoading || !profile) return;
     loadAll();
@@ -162,7 +161,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setMoodCheckins((moodRes.data || []).map(mapMoodCheckin));
       setActionItems((actionRes.data || []).map(mapActionItem));
 
-      // Build moduleConfigs record
       const configs: Record<string, ModuleConfig[]> = {};
       (moduleRes.data || []).forEach((r: any) => {
         if (!configs[r.employee_id]) configs[r.employee_id] = [];
@@ -170,7 +168,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       });
       setModuleConfigs(configs);
 
-      // Set selected employee
       if (profile.role === 'employee' && profile.employee_id) {
         setSelectedEmployeeId(profile.employee_id);
       } else if (emps.length > 0) {
@@ -188,7 +185,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     setSelectedEmployee: setSelectedEmployeeId,
 
-    // ── Goals ──────────────────────────────────────────────────────────────
     addGoal: useCallback(async (goal) => {
       const id = generateId();
       const { data } = await supabase.from('goals').insert({
@@ -218,7 +214,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setGoals(prev => prev.filter(g => g.id !== id));
     }, []),
 
-    // ── Team Goals ─────────────────────────────────────────────────────────
     addTeamGoal: useCallback(async (goal) => {
       const id = generateId();
       const { data } = await supabase.from('team_goals').insert({
@@ -247,7 +242,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setTeamGoals(prev => prev.filter(g => g.id !== id));
     }, []),
 
-    // ── One on Ones ────────────────────────────────────────────────────────
     addOneOnOne: useCallback(async (entry) => {
       const id = generateId();
       const { data } = await supabase.from('one_on_ones').insert({
@@ -275,7 +269,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setOneOnOnes(prev => prev.filter(e => e.id !== id));
     }, []),
 
-    // ── Achievements ───────────────────────────────────────────────────────
     addAchievement: useCallback(async (entry) => {
       const id = generateId();
       const { data } = await supabase.from('achievements').insert({
@@ -301,7 +294,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setAchievements(prev => prev.filter(e => e.id !== id));
     }, []),
 
-    // ── Performance Notes ──────────────────────────────────────────────────
     addPerformanceNote: useCallback(async (entry) => {
       const id = generateId();
       const { data } = await supabase.from('performance_notes').insert({
@@ -316,7 +308,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPerformanceNotes(prev => prev.filter(e => e.id !== id));
     }, []),
 
-    // ── Career Growth ──────────────────────────────────────────────────────
     updateCareerGrowth: useCallback(async (employeeId, data) => {
       const existing = (await supabase.from('career_growth').select('id').eq('employee_id', employeeId).single()).data;
       if (existing) {
@@ -346,7 +337,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     }, []),
 
-    // ── Skills ─────────────────────────────────────────────────────────────
     addSkill: useCallback(async (entry) => {
       const id = generateId();
       const { data } = await supabase.from('skills').insert({
@@ -371,7 +361,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setSkills(prev => prev.filter(s => s.id !== id));
     }, []),
 
-    // ── Mood Checkins ──────────────────────────────────────────────────────
     addMoodCheckin: useCallback(async (entry) => {
       const id = generateId();
       const { data } = await supabase.from('mood_checkins').insert({
@@ -386,7 +375,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setMoodCheckins(prev => prev.filter(e => e.id !== id));
     }, []),
 
-    // ── Action Items ───────────────────────────────────────────────────────
     addActionItem: useCallback(async (entry) => {
       const id = generateId();
       const { data } = await supabase.from('action_items').insert({
@@ -414,13 +402,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setActionItems(prev => prev.filter(a => a.id !== id));
     }, []),
 
-    // ── Module Configs ─────────────────────────────────────────────────────
     getModuleConfigs: useCallback((employeeId: string) => {
       return moduleConfigs[employeeId] || [...DEFAULT_MODULES];
     }, [moduleConfigs]),
 
     updateModuleConfigs: useCallback(async (employeeId: string, configs: ModuleConfig[]) => {
-      // Delete existing and reinsert
       await supabase.from('module_configs').delete().eq('employee_id', employeeId);
       const rows = configs.map(c => ({
         id: generateId(), employee_id: employeeId,
@@ -431,11 +417,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setModuleConfigs(prev => ({ ...prev, [employeeId]: configs }));
     }, []),
 
-    // ── Employees ──────────────────────────────────────────────────────────
     addEmployee: useCallback(async (employee) => {
       const id = generateId();
       const { data } = await supabase.from('employees').insert({
-        id, name: employee.name, role: employee.role, team: employee.team,
+        id, name: employee.name, role: employee.role,
         avatar_color: employee.avatarColor, start_date: employee.startDate,
         current_level: employee.currentLevel, target_level: employee.targetLevel,
       }).select().single();
@@ -446,7 +431,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.from('employees').update({
         ...(updates.name !== undefined && { name: updates.name }),
         ...(updates.role !== undefined && { role: updates.role }),
-        ...(updates.team !== undefined && { team: updates.team }),
         ...(updates.avatarColor !== undefined && { avatar_color: updates.avatarColor }),
         ...(updates.startDate !== undefined && { start_date: updates.startDate }),
         ...(updates.currentLevel !== undefined && { current_level: updates.currentLevel }),

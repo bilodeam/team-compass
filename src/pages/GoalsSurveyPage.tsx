@@ -8,11 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
+import { useStore } from '@/store/useStore';
 
 // ─── Config ────────────────────────────────────────────────────────────────
 const JSONBIN_KEY = '$2a$10$4XBuzRlSsNfSfc.xD58ZWOpzy5.av2aeY/PUDckl6JdzIuH2Lnt/u';
 const BIN_ID = '69aa37c443b1c97be9b83a7a';
-const MANAGER_PASSWORD = '2026'; // ← change this to your real password
+const MANAGER_PASSWORD = 'manager123'; // ← change this to your real password
 
 const PROJECTS = [
   { id: 'p1',  title: 'API Platform Modernization' },
@@ -39,7 +40,7 @@ const RATING_LABELS: Record<number, string> = {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Rating { projectId: string; title: string; rating: number; }
-interface Submission { employeeName: string; submittedAt: string; ratings: Rating[]; }
+interface Submission { employeeId: string; employeeName: string; submittedAt: string; ratings: Rating[]; }
 interface BinData { submissions: Submission[]; }
 
 // ─── JSONBin helpers ─────────────────────────────────────────────────────────
@@ -61,7 +62,7 @@ async function saveBin(data: BinData): Promise<void> {
 
 // ─── Step indicator ──────────────────────────────────────────────────────────
 function StepBar({ step }: { step: number }) {
-  const steps = ['Select', 'Rate', 'Confirm'];
+  const steps = ['Who are you?', 'Select', 'Rate', 'Confirm'];
   return (
     <div className="flex items-center justify-center gap-2 py-4">
       {steps.map((label, i) => {
@@ -83,7 +84,7 @@ function StepBar({ step }: { step: number }) {
               {label}
             </div>
             {i < steps.length - 1 && (
-              <div className={`w-8 h-0.5 rounded ${state === 'done' ? 'bg-primary' : 'bg-border'}`} />
+              <div className={`w-6 h-0.5 rounded ${state === 'done' ? 'bg-primary' : 'bg-border'}`} />
             )}
           </div>
         );
@@ -106,11 +107,7 @@ function StarRating({ value, onChange }: { value: number; onChange: (n: number) 
           onMouseLeave={() => setHover(0)}
           className="transition-transform hover:scale-110"
         >
-          <Star
-            className={`h-6 w-6 transition-colors ${
-              n <= (hover || value) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'
-            }`}
-          />
+          <Star className={`h-6 w-6 transition-colors ${n <= (hover || value) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'}`} />
         </button>
       ))}
     </div>
@@ -121,8 +118,9 @@ function StarRating({ value, onChange }: { value: number; onChange: (n: number) 
 // EMPLOYEE SURVEY
 // ════════════════════════════════════════════════════════════════════════════
 function EmployeeSurvey({ onManagerClick }: { onManagerClick: () => void }) {
+  const { employees } = useStore();
   const [step, setStep] = useState(1);
-  const [name, setName] = useState('');
+  const [pickedEmployee, setPickedEmployee] = useState<{ id: string; name: string; avatarColor: string } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [customText, setCustomText] = useState('');
@@ -148,11 +146,13 @@ function EmployeeSurvey({ onManagerClick }: { onManagerClick: () => void }) {
   }
 
   async function handleSubmit() {
+    if (!pickedEmployee) return;
     setSubmitting(true);
     try {
       const data = await fetchBin();
       const submission: Submission = {
-        employeeName: name.trim(),
+        employeeId: pickedEmployee.id,
+        employeeName: pickedEmployee.name,
         submittedAt: new Date().toISOString(),
         ratings: selectedProjects.map(p => ({ projectId: p.id, title: p.title, rating: ratings[p.id] || 0 })),
       };
@@ -165,22 +165,28 @@ function EmployeeSurvey({ onManagerClick }: { onManagerClick: () => void }) {
     }
   }
 
+  function reset() {
+    setSubmitted(false);
+    setStep(1);
+    setPickedEmployee(null);
+    setSelected([]);
+    setRatings({});
+    setCustomAdded(null);
+  }
+
   if (submitted) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 py-24 text-center">
         <div className="text-5xl mb-4">🎉</div>
-        <h2 className="text-2xl font-bold mb-2">Thanks, {name.split(' ')[0]}!</h2>
+        <h2 className="text-2xl font-bold mb-2">Thanks, {pickedEmployee?.name.split(' ')[0]}!</h2>
         <p className="text-muted-foreground mb-6">Your goals have been submitted successfully.</p>
-        <Button variant="outline" onClick={() => { setSubmitted(false); setStep(1); setName(''); setSelected([]); setRatings({}); }}>
-          Submit another response
-        </Button>
+        <Button variant="outline" onClick={reset}>Submit another response</Button>
       </div>
     );
   }
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Step bar */}
       <div className="border-b border-border bg-card px-6">
         <StepBar step={step} />
       </div>
@@ -188,24 +194,58 @@ function EmployeeSurvey({ onManagerClick }: { onManagerClick: () => void }) {
       <div className="flex-1 p-6">
         <div className="max-w-3xl mx-auto space-y-6">
 
-          {/* ── Step 1: Name + project selection ── */}
+          {/* ── Step 1: Pick your name ── */}
           {step === 1 && (
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>What's your name?</CardTitle>
-                  <CardDescription>So we know whose goals these are</CardDescription>
+                  <CardTitle>Who are you?</CardTitle>
+                  <CardDescription>Tap your name to get started</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Input
-                    placeholder="e.g. Sarah Chen"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="max-w-sm"
-                  />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {employees.map(emp => {
+                      const initials = emp.name.split(' ').map((n: string) => n[0]).join('');
+                      const isPicked = pickedEmployee?.id === emp.id;
+                      return (
+                        <button
+                          key={emp.id}
+                          type="button"
+                          onClick={() => setPickedEmployee({ id: emp.id, name: emp.name, avatarColor: emp.avatarColor })}
+                          className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                            isPicked
+                              ? 'border-primary bg-primary/5 shadow-md scale-[1.02]'
+                              : 'border-border bg-card hover:border-muted-foreground/40 hover:shadow-sm'
+                          }`}
+                        >
+                          <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm"
+                            style={{ backgroundColor: emp.avatarColor }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="text-center">
+                            <div className="text-sm font-semibold">{emp.name}</div>
+                            <div className="text-xs text-muted-foreground">{emp.role}</div>
+                          </div>
+                          {isPicked && (
+                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">✓</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </CardContent>
               </Card>
+              <div className="flex justify-end">
+                <Button disabled={!pickedEmployee} onClick={() => setStep(2)}>Select projects →</Button>
+              </div>
+            </>
+          )}
 
+          {/* ── Step 2: Project selection ── */}
+          {step === 2 && (
+            <>
               <Card>
                 <CardHeader>
                   <CardTitle>Which projects interest you for 2026?</CardTitle>
@@ -221,9 +261,7 @@ function EmployeeSurvey({ onManagerClick }: { onManagerClick: () => void }) {
                           type="button"
                           onClick={() => toggleProject(p.id)}
                           className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 text-left transition-all text-sm font-medium ${
-                            isSelected
-                              ? 'border-primary bg-primary/5 text-primary'
-                              : 'border-border bg-card hover:border-muted-foreground/40'
+                            isSelected ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-card hover:border-muted-foreground/40'
                           }`}
                         >
                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 text-[10px] font-bold transition-all ${
@@ -235,16 +273,12 @@ function EmployeeSurvey({ onManagerClick }: { onManagerClick: () => void }) {
                         </button>
                       );
                     })}
-
-                    {/* Custom suggestion */}
                     {customAdded ? (
                       <button
                         type="button"
                         onClick={() => toggleProject(customAdded.id)}
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg border-2 text-left transition-all text-sm font-medium ${
-                          selected.includes(customAdded.id)
-                            ? 'border-primary bg-primary/5 text-primary'
-                            : 'border-border bg-card hover:border-muted-foreground/40'
+                          selected.includes(customAdded.id) ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-card hover:border-muted-foreground/40'
                         }`}
                       >
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 text-[10px] font-bold ${
@@ -264,139 +298,98 @@ function EmployeeSurvey({ onManagerClick }: { onManagerClick: () => void }) {
                           onKeyDown={e => e.key === 'Enter' && addCustom()}
                           className="border-0 bg-transparent p-0 h-auto text-sm focus-visible:ring-0"
                         />
-                        <Button size="sm" variant="secondary" onClick={addCustom} disabled={!customText.trim()}>
-                          Add
-                        </Button>
+                        <Button size="sm" variant="secondary" onClick={addCustom} disabled={!customText.trim()}>Add</Button>
                       </div>
                     )}
                   </div>
-
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      <strong className="text-foreground">{selected.length}</strong> selected
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSelected(PROJECTS.map(p => p.id))}
-                      className="text-xs text-primary underline"
-                    >
-                      Select all
-                    </button>
+                    <span className="text-sm text-muted-foreground"><strong className="text-foreground">{selected.length}</strong> selected</span>
+                    <button type="button" onClick={() => setSelected(PROJECTS.map(p => p.id))} className="text-xs text-primary underline">Select all</button>
                   </div>
                 </CardContent>
               </Card>
-
-              <div className="flex justify-end">
-                <Button
-                  disabled={!name.trim() || selected.length === 0}
-                  onClick={() => setStep(2)}
-                >
-                  Rate my selections →
-                </Button>
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
+                <Button disabled={selected.length === 0} onClick={() => setStep(3)}>Rate my selections →</Button>
               </div>
             </>
           )}
 
-          {/* ── Step 2: Star ratings ── */}
-          {step === 2 && (
+          {/* ── Step 3: Star ratings ── */}
+          {step === 3 && (
             <>
               <Card>
                 <CardHeader>
                   <CardTitle>Rate your interest in each project</CardTitle>
                   <CardDescription>1 star = low interest · 5 stars = top priority</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-1">
+                <CardContent className="space-y-2">
                   <div className="flex items-center gap-3 mb-4">
                     <Progress value={progress} className="flex-1" />
                     <span className="text-sm text-muted-foreground whitespace-nowrap">{ratedCount} / {selectedProjects.length} rated</span>
                   </div>
-
                   {selectedProjects.map(p => (
-                    <div
-                      key={p.id}
-                      className={`flex items-center justify-between p-4 rounded-lg border-2 transition-colors ${
-                        ratings[p.id] ? 'border-yellow-300/50 bg-yellow-50/50 dark:bg-yellow-900/10' : 'border-border'
-                      }`}
-                    >
+                    <div key={p.id} className={`flex items-center justify-between p-4 rounded-lg border-2 transition-colors ${ratings[p.id] ? 'border-yellow-300/50 bg-yellow-50/50 dark:bg-yellow-900/10' : 'border-border'}`}>
                       <div>
                         <div className="font-medium text-sm">{p.title}</div>
-                        {ratings[p.id] && (
-                          <div className="text-xs text-yellow-600 font-medium mt-0.5">{RATING_LABELS[ratings[p.id]]}</div>
-                        )}
+                        {ratings[p.id] && <div className="text-xs text-yellow-600 font-medium mt-0.5">{RATING_LABELS[ratings[p.id]]}</div>}
                       </div>
-                      <StarRating
-                        value={ratings[p.id] || 0}
-                        onChange={n => setRatings(prev => ({ ...prev, [p.id]: n }))}
-                      />
+                      <StarRating value={ratings[p.id] || 0} onChange={n => setRatings(prev => ({ ...prev, [p.id]: n }))} />
                     </div>
                   ))}
                 </CardContent>
               </Card>
-
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
-                <Button
-                  disabled={ratedCount < selectedProjects.length}
-                  onClick={() => setStep(3)}
-                >
-                  Review & submit →
-                </Button>
+                <Button variant="outline" onClick={() => setStep(2)}>← Back</Button>
+                <Button disabled={ratedCount < selectedProjects.length} onClick={() => setStep(4)}>Review & submit →</Button>
               </div>
             </>
           )}
 
-          {/* ── Step 3: Confirm ── */}
-          {step === 3 && (
+          {/* ── Step 4: Confirm ── */}
+          {step === 4 && (
             <>
               <Card>
                 <CardHeader>
                   <CardTitle>Review your submission</CardTitle>
-                  <CardDescription>Submitting as <strong>{name}</strong></CardDescription>
+                  <CardDescription>
+                    Submitting as{' '}
+                    <span className="font-semibold" style={{ color: pickedEmployee?.avatarColor }}>{pickedEmployee?.name}</span>
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {[...selectedProjects]
-                      .sort((a, b) => (ratings[b.id] || 0) - (ratings[a.id] || 0))
-                      .map((p, i) => (
-                        <div key={p.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground w-4">{i + 1}.</span>
-                            <span className="text-sm font-medium">{p.title}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{RATING_LABELS[ratings[p.id]]}</span>
-                            <div className="flex gap-0.5">
-                              {[1,2,3,4,5].map(n => (
-                                <Star key={n} className={`h-3.5 w-3.5 ${n <= ratings[p.id] ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/20'}`} />
-                              ))}
-                            </div>
+                    {[...selectedProjects].sort((a, b) => (ratings[b.id] || 0) - (ratings[a.id] || 0)).map((p, i) => (
+                      <div key={p.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground w-4">{i + 1}.</span>
+                          <span className="text-sm font-medium">{p.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{RATING_LABELS[ratings[p.id]]}</span>
+                          <div className="flex gap-0.5">
+                            {[1,2,3,4,5].map(n => (
+                              <Star key={n} className={`h-3.5 w-3.5 ${n <= ratings[p.id] ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/20'}`} />
+                            ))}
                           </div>
                         </div>
-                      ))}
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
-
               <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(2)}>← Back</Button>
-                <Button onClick={handleSubmit} disabled={submitting}>
-                  {submitting ? 'Submitting…' : 'Submit goals ✓'}
-                </Button>
+                <Button variant="outline" onClick={() => setStep(3)}>← Back</Button>
+                <Button onClick={handleSubmit} disabled={submitting}>{submitting ? 'Submitting…' : 'Submit goals ✓'}</Button>
               </div>
             </>
           )}
         </div>
       </div>
 
-      {/* Manager link */}
       <div className="border-t border-border p-4 text-center">
-        <button
-          type="button"
-          onClick={onManagerClick}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 mx-auto"
-        >
-          <Lock className="h-3 w-3" />
-          Manager view
+        <button type="button" onClick={onManagerClick} className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 mx-auto">
+          <Lock className="h-3 w-3" /> Manager view
         </button>
       </div>
     </div>
@@ -407,6 +400,7 @@ function EmployeeSurvey({ onManagerClick }: { onManagerClick: () => void }) {
 // MANAGER DASHBOARD
 // ════════════════════════════════════════════════════════════════════════════
 function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
+  const { employees } = useStore();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'selections' | 'rating'>('selections');
@@ -426,21 +420,21 @@ function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // Build project stats
-  const allProjects = PROJECTS;
-  const projectStats = allProjects.map(p => {
+  const projectStats = PROJECTS.map(p => {
     const subs = submissions.filter(s => s.ratings.find(r => r.projectId === p.id || r.title === p.title));
     const rated = subs.map(s => s.ratings.find(r => r.projectId === p.id || r.title === p.title)!.rating);
     const avg = rated.length ? rated.reduce((a, b) => a + b, 0) / rated.length : 0;
     const dist = [1,2,3,4,5].map(n => rated.filter(r => r === n).length);
-    return { ...p, selections: subs.length, avg: avg ? avg.toFixed(1) : null, dist, employees: subs.map(s => s.employeeName) };
+    return { ...p, selections: subs.length, avg: avg ? avg.toFixed(1) : null, dist, employeeNames: subs.map(s => s.employeeName) };
   });
 
-  // Custom suggestions
   const customSubs = submissions.flatMap(s =>
     s.ratings.filter(r => !PROJECTS.find(p => p.id === r.projectId || p.title === r.title))
       .map(r => ({ ...r, employee: s.employeeName }))
   );
+
+  const submittedIds = new Set(submissions.map(s => s.employeeId));
+  const notSubmitted = employees.filter(e => !submittedIds.has(e.id));
 
   const sorted = [...projectStats].sort((a, b) =>
     sortBy === 'rating' ? parseFloat(b.avg || '0') - parseFloat(a.avg || '0') : b.selections - a.selections
@@ -482,12 +476,10 @@ function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="flex-1 p-6">
       <div className="max-w-5xl mx-auto space-y-6">
-
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Manager Dashboard</h2>
-            <p className="text-sm text-muted-foreground">{submissions.length} submission{submissions.length !== 1 ? 's' : ''} received</p>
+            <p className="text-sm text-muted-foreground">{submissions.length} of {employees.length} submitted</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
@@ -503,6 +495,28 @@ function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
           <div className="text-center py-16 text-muted-foreground">Loading submissions…</div>
         ) : (
           <>
+            {/* Who hasn't submitted */}
+            {notSubmitted.length > 0 && (
+              <Card className="border-yellow-300/50 bg-yellow-50/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm text-yellow-700">⏳ Waiting on {notSubmitted.length} team member{notSubmitted.length > 1 ? 's' : ''}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {notSubmitted.map(e => {
+                      const initials = e.name.split(' ').map((n: string) => n[0]).join('');
+                      return (
+                        <div key={e.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-yellow-200">
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: e.avatarColor }}>{initials}</div>
+                          <span className="text-xs font-medium">{e.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Project rankings */}
             <Card>
               <CardHeader>
@@ -527,26 +541,16 @@ function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
                       <span className="text-lg font-bold text-muted-foreground w-6 text-center">{idx + 1}</span>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm">{p.title}</div>
-                        {p.employees.length > 0 && (
-                          <div className="text-xs text-muted-foreground truncate">{p.employees.join(', ')}</div>
-                        )}
+                        {p.employeeNames.length > 0 && <div className="text-xs text-muted-foreground truncate">{p.employeeNames.join(', ')}</div>}
                         {p.dist.some(n => n > 0) && (
                           <div className="flex gap-2 mt-1">
-                            {p.dist.map((c, i) => c > 0 && (
-                              <span key={i} className="text-[10px] text-muted-foreground">★{i+1}: {c}</span>
-                            ))}
+                            {p.dist.map((c, i) => c > 0 && <span key={i} className="text-[10px] text-muted-foreground">★{i+1}: {c}</span>)}
                           </div>
                         )}
                       </div>
                       <div className="flex gap-4 text-center shrink-0">
-                        <div>
-                          <div className="text-lg font-bold">{p.selections}</div>
-                          <div className="text-[10px] text-muted-foreground">selections</div>
-                        </div>
-                        <div>
-                          <div className="text-lg font-bold text-yellow-500">{p.avg || '—'}</div>
-                          <div className="text-[10px] text-muted-foreground">avg ★</div>
-                        </div>
+                        <div><div className="text-lg font-bold">{p.selections}</div><div className="text-[10px] text-muted-foreground">selections</div></div>
+                        <div><div className="text-lg font-bold text-yellow-500">{p.avg || '—'}</div><div className="text-[10px] text-muted-foreground">avg ★</div></div>
                       </div>
                     </div>
                   ))}
@@ -570,9 +574,7 @@ function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
                           <span className="text-xs text-muted-foreground ml-2">by {c.employee}</span>
                         </div>
                         <div className="flex gap-0.5">
-                          {[1,2,3,4,5].map(n => (
-                            <Star key={n} className={`h-3.5 w-3.5 ${n <= c.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/20'}`} />
-                          ))}
+                          {[1,2,3,4,5].map(n => <Star key={n} className={`h-3.5 w-3.5 ${n <= c.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/20'}`} />)}
                         </div>
                       </div>
                     ))}
@@ -593,6 +595,7 @@ function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
                 ) : (
                   <div className="space-y-2">
                     {submissions.map((s, i) => {
+                      const emp = employees.find(e => e.id === s.employeeId);
                       const initials = s.employeeName.split(' ').map(n => n[0] || '').join('').slice(0, 2).toUpperCase();
                       const avg = s.ratings.length ? (s.ratings.reduce((a, b) => a + b.rating, 0) / s.ratings.length).toFixed(1) : '—';
                       const isOpen = expandedIdx === i;
@@ -603,21 +606,18 @@ function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
                             onClick={() => setExpandedIdx(isOpen ? null : i)}
                             className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/50 transition-colors"
                           >
-                            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor: emp?.avatarColor || '#6366f1' }}>
                               {initials}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm">{s.employeeName}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {new Date(s.submittedAt).toLocaleString()} · {s.ratings.length} project{s.ratings.length !== 1 ? 's' : ''}
-                              </div>
+                              <div className="text-xs text-muted-foreground">{new Date(s.submittedAt).toLocaleString()} · {s.ratings.length} project{s.ratings.length !== 1 ? 's' : ''}</div>
                             </div>
                             <div className="flex items-center gap-3">
                               <span className="text-sm font-medium text-yellow-500">{avg} ★</span>
                               {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                             </div>
                           </button>
-
                           {isOpen && (
                             <div className="border-t border-border p-3 bg-muted/30">
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
@@ -625,20 +625,13 @@ function ManagerDashboard({ onLogout }: { onLogout: () => void }) {
                                   <div key={ri} className="flex items-center justify-between p-2 rounded bg-card border border-border">
                                     <span className="text-xs font-medium truncate flex-1 mr-2">{r.title}</span>
                                     <div className="flex gap-0.5 shrink-0">
-                                      {[1,2,3,4,5].map(n => (
-                                        <Star key={n} className={`h-3 w-3 ${n <= r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/20'}`} />
-                                      ))}
+                                      {[1,2,3,4,5].map(n => <Star key={n} className={`h-3 w-3 ${n <= r.rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/20'}`} />)}
                                     </div>
                                   </div>
                                 ))}
                               </div>
                               <div className="flex justify-end">
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => deleteSubmission(i)}
-                                  className="gap-1.5"
-                                >
+                                <Button size="sm" variant="destructive" onClick={() => deleteSubmission(i)} className="gap-1.5">
                                   <Trash2 className="h-3.5 w-3.5" /> Delete submission
                                 </Button>
                               </div>
@@ -681,41 +674,33 @@ export default function GoalsSurveyPage() {
 
   return (
     <div className="flex-1 flex flex-col min-h-screen">
-      {/* Top nav */}
       <div className="border-b border-border bg-card">
-        <div className="flex items-center justify-between p-5">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Dashboard
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-primary" />
-                {view === 'manager' ? 'Goals Survey — Manager View' : '2026 Goals Survey'}
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                {view === 'manager' ? 'Review team submissions and rankings' : 'Product Engineering Team · Share your priorities for 2026'}
-              </p>
-            </div>
+        <div className="flex items-center p-5 gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-primary" />
+              {view === 'manager' ? 'Goals Survey — Manager View' : '2026 Goals Survey'}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {view === 'manager' ? 'Review team submissions and rankings' : 'Product Engineering Team · Share your priorities for 2026'}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Content */}
       {view === 'survey' ? (
         <EmployeeSurvey onManagerClick={() => setLoginOpen(true)} />
       ) : (
         <ManagerDashboard onLogout={() => setView('survey')} />
       )}
 
-      {/* Password dialog */}
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="h-4 w-4" /> Manager Access
-            </DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" /> Manager Access</DialogTitle>
             <DialogDescription>Enter your manager password to view submissions</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">

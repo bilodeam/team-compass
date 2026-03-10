@@ -7,10 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Target, CheckSquare, Users, Calendar, AlertCircle, Pencil, Home, Plus, UserPlus } from 'lucide-react';
+import { Target, CheckSquare, Users, Calendar, AlertCircle, Pencil, Home, Plus, UserPlus, TrendingUp } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 import { useState } from 'react';
-import { ActionStatus } from '@/types/employee';
+import { ActionStatus, GoalStatus } from '@/types/employee';
 import { Link, useNavigate } from 'react-router-dom';
 
 const AVATAR_COLORS = [
@@ -18,13 +18,21 @@ const AVATAR_COLORS = [
   'hsl(30, 75%, 50%)', 'hsl(270, 60%, 55%)', 'hsl(190, 70%, 45%)',
 ];
 
+const STATUS_CONFIG: Record<GoalStatus, { label: string; color: string; bar: string }> = {
+  'on-track': { label: 'On Track', color: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20', bar: 'bg-emerald-500' },
+  'at-risk':  { label: 'At Risk',  color: 'bg-amber-500/10 text-amber-700 border-amber-500/20',   bar: 'bg-amber-500'   },
+  'done':     { label: 'Done',     color: 'bg-blue-500/10 text-blue-700 border-blue-500/20',       bar: 'bg-blue-500'    },
+  'blocked':  { label: 'Blocked',  color: 'bg-red-500/10 text-red-700 border-red-500/20',          bar: 'bg-red-500'     },
+};
+
 export default function TeamDashboard() {
-  const { employees, teamGoals, actionItems, updateActionItem, addEmployee, setSelectedEmployee } = useStore();
+  const { employees, goals, teamGoals, actionItems, updateActionItem, addEmployee, setSelectedEmployee } = useStore();
   const navigate = useNavigate();
   const [editingAction, setEditingAction] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ assignedTo: '', status: '' as ActionStatus });
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: '', role: '', team: '', startDate: '' });
+  const [newEmployee, setNewEmployee] = useState({ name: '', role: '', startDate: '' });
+  const [statusFilter, setStatusFilter] = useState<GoalStatus | 'all'>('all');
 
   // Process action items with overdue status
   const allActionItems = actionItems.map(item => {
@@ -36,6 +44,17 @@ export default function TeamDashboard() {
 
   const pendingActions = allActionItems.filter(item => item.status !== 'completed');
   const overdueActions = allActionItems.filter(item => item.status === 'overdue');
+
+  // All individual goals across all employees
+  const allGoals = goals.filter(g => statusFilter === 'all' || g.status === statusFilter);
+
+  // Stats
+  const totalGoals = goals.length;
+  const onTrackCount = goals.filter(g => g.status === 'on-track').length;
+  const atRiskCount = goals.filter(g => g.status === 'at-risk').length;
+  const doneCount = goals.filter(g => g.status === 'done').length;
+  const blockedCount = goals.filter(g => g.status === 'blocked').length;
+  const avgProgress = totalGoals > 0 ? Math.round(goals.reduce((s, g) => s + g.progress, 0) / totalGoals) : 0;
 
   const handleEditAction = (actionId: string, assignedTo?: string, status?: ActionStatus) => {
     setEditingAction(actionId);
@@ -54,14 +73,13 @@ export default function TeamDashboard() {
     const color = AVATAR_COLORS[employees.length % AVATAR_COLORS.length];
     addEmployee({
       name: newEmployee.name.trim(),
-      role: newEmployee.role.trim() || 'Team Member',
-      team: newEmployee.team.trim() || 'General',
+      role: newEmployee.role.trim() || 'Product Engineer',
       avatarColor: color,
       startDate: newEmployee.startDate || new Date().toISOString().split('T')[0],
       currentLevel: '',
       targetLevel: '',
     });
-    setNewEmployee({ name: '', role: '', team: '', startDate: '' });
+    setNewEmployee({ name: '', role: '', startDate: '' });
     setIsAddOpen(false);
   };
 
@@ -70,10 +88,10 @@ export default function TeamDashboard() {
     navigate('/');
   };
 
-  const getStatusColor = (status: string) => {
+  const getActionStatusColor = (status: string) => {
     switch (status) {
-      case 'on-track': case 'completed': return 'bg-green-500/10 text-green-700 border-green-500/20';
-      case 'at-risk': return 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20';
+      case 'on-track': case 'completed': return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20';
+      case 'at-risk': return 'bg-amber-500/10 text-amber-700 border-amber-500/20';
       case 'done': case 'in-progress': return 'bg-blue-500/10 text-blue-700 border-blue-500/20';
       case 'blocked': case 'overdue': return 'bg-red-500/10 text-red-700 border-red-500/20';
       default: return 'bg-muted text-muted-foreground border-border';
@@ -102,7 +120,8 @@ export default function TeamDashboard() {
       </div>
 
       <div className="container mx-auto px-6 py-8 space-y-8">
-        {/* Team Members Section */}
+
+        {/* Team Members */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -116,9 +135,7 @@ export default function TeamDashboard() {
                   <Button size="sm"><Plus className="h-4 w-4 mr-1" />Add Employee</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Employee</DialogTitle>
-                  </DialogHeader>
+                  <DialogHeader><DialogTitle>Add New Employee</DialogTitle></DialogHeader>
                   <div className="space-y-4 py-4">
                     <div>
                       <Label htmlFor="emp-name">Name *</Label>
@@ -126,11 +143,7 @@ export default function TeamDashboard() {
                     </div>
                     <div>
                       <Label htmlFor="emp-role">Role</Label>
-                      <Input id="emp-role" value={newEmployee.role} onChange={e => setNewEmployee(p => ({ ...p, role: e.target.value }))} placeholder="e.g. Software Engineer" />
-                    </div>
-                    <div>
-                      <Label htmlFor="emp-team">Team</Label>
-                      <Input id="emp-team" value={newEmployee.team} onChange={e => setNewEmployee(p => ({ ...p, team: e.target.value }))} placeholder="e.g. Engineering" />
+                      <Input id="emp-role" value={newEmployee.role} onChange={e => setNewEmployee(p => ({ ...p, role: e.target.value }))} placeholder="e.g. Product Engineer" />
                     </div>
                     <div>
                       <Label htmlFor="emp-start">Start Date</Label>
@@ -147,66 +160,133 @@ export default function TeamDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {employees.map(emp => (
-                <button
-                  key={emp.id}
-                  onClick={() => handleEmployeeClick(emp.id)}
-                  className="flex items-center gap-3 rounded-lg border border-border p-4 text-left transition-colors hover:bg-accent/50"
-                >
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback style={{ backgroundColor: emp.avatarColor }} className="text-white text-sm font-semibold">
-                      {getInitials(emp.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-foreground truncate">{emp.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{emp.role}</p>
-                    <p className="text-xs text-muted-foreground">{emp.team}</p>
-                  </div>
-                </button>
-              ))}
+              {employees.map(emp => {
+                const empGoals = goals.filter(g => g.employeeId === emp.id);
+                const empOnTrack = empGoals.filter(g => g.status === 'on-track').length;
+                const empAtRisk = empGoals.filter(g => g.status === 'at-risk').length;
+                const empBlocked = empGoals.filter(g => g.status === 'blocked').length;
+                return (
+                  <button
+                    key={emp.id}
+                    onClick={() => handleEmployeeClick(emp.id)}
+                    className="flex items-center gap-3 rounded-lg border border-border p-4 text-left transition-colors hover:bg-accent/50"
+                  >
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarFallback style={{ backgroundColor: emp.avatarColor }} className="text-white text-sm font-semibold">
+                        {getInitials(emp.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground truncate">{emp.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{emp.currentLevel ? `${emp.role} ${emp.currentLevel}` : emp.role}</p>
+                      {empGoals.length > 0 && (
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span className="text-[10px] text-muted-foreground">{empGoals.length} goal{empGoals.length !== 1 ? 's' : ''}</span>
+                          {empOnTrack > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">{empOnTrack} on track</span>}
+                          {empAtRisk > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700">{empAtRisk} at risk</span>}
+                          {empBlocked > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-700">{empBlocked} blocked</span>}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
-        {/* Team Goals Section */}
+        {/* Team Goals — individual goals from all employees */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Team Goals
-              <Badge variant="outline">{teamGoals.length}</Badge>
-            </CardTitle>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                <CardTitle>Team Goals</CardTitle>
+                <Badge variant="outline">{totalGoals}</Badge>
+              </div>
+
+              {/* Stats row */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {totalGoals > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground border border-border rounded-full px-3 py-1">
+                    <TrendingUp className="h-3 w-3 text-primary" />
+                    Avg {avgProgress}% complete
+                  </div>
+                )}
+                <button onClick={() => setStatusFilter('all')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'all' ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:border-foreground/40'}`}>All</button>
+                <button onClick={() => setStatusFilter('on-track')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'on-track' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-border text-muted-foreground hover:border-emerald-400'}`}>On Track {onTrackCount > 0 && `(${onTrackCount})`}</button>
+                <button onClick={() => setStatusFilter('at-risk')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'at-risk' ? 'bg-amber-500 text-white border-amber-500' : 'border-border text-muted-foreground hover:border-amber-400'}`}>At Risk {atRiskCount > 0 && `(${atRiskCount})`}</button>
+                <button onClick={() => setStatusFilter('blocked')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'blocked' ? 'bg-red-600 text-white border-red-600' : 'border-border text-muted-foreground hover:border-red-400'}`}>Blocked {blockedCount > 0 && `(${blockedCount})`}</button>
+                <button onClick={() => setStatusFilter('done')} className={`text-xs px-3 py-1 rounded-full border transition-colors ${statusFilter === 'done' ? 'bg-blue-600 text-white border-blue-600' : 'border-border text-muted-foreground hover:border-blue-400'}`}>Done {doneCount > 0 && `(${doneCount})`}</button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            {teamGoals.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No team goals set yet</p>
+            {allGoals.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                {statusFilter === 'all' ? 'No goals added yet — add them in each employee profile' : `No ${statusFilter} goals`}
+              </p>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {teamGoals.map((goal) => (
-                  <div key={goal.id} className="border border-border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <h3 className="font-semibold text-foreground">{goal.title}</h3>
-                      <Badge className={getStatusColor(goal.status)}>{goal.status}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{goal.description}</p>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{goal.timeframe}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary transition-all" style={{ width: `${goal.progress}%` }} />
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {allGoals.map((goal) => {
+                  const emp = employees.find(e => e.id === goal.employeeId);
+                  const cfg = STATUS_CONFIG[goal.status];
+                  return (
+                    <button
+                      key={goal.id}
+                      onClick={() => emp && handleEmployeeClick(emp.id)}
+                      className="group text-left border border-border rounded-xl p-4 space-y-3 hover:border-primary/40 hover:shadow-sm transition-all bg-card"
+                    >
+                      {/* Owner + status */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {emp && (
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                              style={{ backgroundColor: emp.avatarColor }}
+                            >
+                              {getInitials(emp.name)}
+                            </div>
+                          )}
+                          <span className="text-xs text-muted-foreground truncate">{emp?.name || 'Unknown'}</span>
                         </div>
-                        <span className="font-medium">{goal.progress}%</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium shrink-0 ${cfg.color}`}>
+                          {cfg.label}
+                        </span>
                       </div>
-                    </div>
-                  </div>
-                ))}
+
+                      {/* Title */}
+                      <div>
+                        <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
+                          {goal.title}
+                        </p>
+                        {goal.description && (
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{goal.description}</p>
+                        )}
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>{goal.timeframe}{goal.quarter ? ` · ${goal.quarter}` : ''}</span>
+                          <span className="font-medium text-foreground">{goal.progress}%</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${cfg.bar}`}
+                            style={{ width: `${goal.progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Key Actions Section */}
+        {/* Key Actions */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -229,12 +309,21 @@ export default function TeamDashboard() {
                   return (
                     <div key={action.id} className={`border rounded-lg p-4 space-y-3 ${isOverdue ? 'border-destructive/30 bg-destructive/5' : 'border-border'}`}>
                       <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className={`font-semibold ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>{action.title}</h3>
-                          <p className="text-sm text-muted-foreground mt-1">For: {employee?.name || 'Unknown'}</p>
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {employee && (
+                            <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+                              <AvatarFallback style={{ backgroundColor: employee.avatarColor }} className="text-white text-[10px] font-semibold">
+                                {getInitials(employee.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div className="min-w-0">
+                            <h3 className={`font-semibold text-sm ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>{action.title}</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">{employee?.name || 'Unknown'}</p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(action.status)}>{action.status}</Badge>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge className={getActionStatusColor(action.status)}>{action.status}</Badge>
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button variant="ghost" size="sm" onClick={() => handleEditAction(action.id, action.assignedTo, action.status)} className="h-8 w-8 p-0">
@@ -268,7 +357,7 @@ export default function TeamDashboard() {
                           </Dialog>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-4">
                           <span className="text-muted-foreground">Owner: {action.owner === 'manager' ? 'Manager' : 'Employee'}</span>
                           {action.assignedTo && <span className="font-medium text-foreground">Assigned: {action.assignedTo}</span>}

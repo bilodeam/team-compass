@@ -71,6 +71,10 @@ export function EmployeeSidebar() {
     ? employees.find(e => e.id === profile?.employee_id)
     : null;
 
+  // Separate Maxence (emp-0) from the rest of the team
+  const managerEmployee = employees.find(e => e.id === 'emp-0');
+  const teamEmployees = employees.filter(e => e.id !== 'emp-0');
+
   async function handleSignOut() {
     await signOut();
     navigate('/');
@@ -104,10 +108,45 @@ export function EmployeeSidebar() {
         </Button>
       </div>
 
-      {/* Employee list — manager only */}
+      {/* Manager: employee list */}
       {isManager && (
-        <nav className="p-3 space-y-1">
-          {employees.map((emp) => {
+        <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+
+          {/* Maxence — special "You" card */}
+          {managerEmployee && (
+            <>
+              <button
+                onClick={() => setSelectedEmployee(managerEmployee.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 border ${
+                  selectedEmployeeId === managerEmployee.id
+                    ? 'bg-primary/10 border-primary/30 text-sidebar-accent-foreground'
+                    : 'border-primary/20 bg-primary/5 text-sidebar-foreground hover:bg-primary/10'
+                }`}
+              >
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                  style={{ backgroundColor: managerEmployee.avatarColor, color: 'white' }}
+                >
+                  {managerEmployee.name.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{managerEmployee.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{managerEmployee.currentLevel}</div>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium shrink-0">You</span>
+              </button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-2 py-1">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Team</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+            </>
+          )}
+
+          {/* Rest of the team */}
+          {teamEmployees.map((emp) => {
             const isActive = emp.id === selectedEmployeeId;
             const initials = emp.name.split(' ').map(n => n[0]).join('');
             return (
@@ -154,7 +193,7 @@ export function EmployeeSidebar() {
         </div>
       )}
 
-      {/* Team Goals — manager only, links to /team */}
+      {/* Team Goals — manager only */}
       {isManager && (
         <div className="border-t border-border p-3">
           <div className="flex items-center justify-between mb-2">
@@ -302,7 +341,6 @@ export function EmployeeSidebar() {
 
       {/* Footer — change password + sign out */}
       <div className="mt-auto border-t border-border p-3 space-y-1">
-
         <Dialog open={pwOpen} onOpenChange={(open) => { setPwOpen(open); setPwError(''); setPwSuccess(false); setPwForm({ newPassword: '', confirm: '' }); }}>
           <DialogTrigger asChild>
             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground">

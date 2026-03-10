@@ -42,7 +42,7 @@ export function EmployeeProfile() {
   const [activeTab, setActiveTab] = useState<ModuleType>('goals');
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: '', role: '', team: '', currentLevel: '', startDate: '', targetLevel: ''
+    name: '', role: '', startDate: '', targetLevel: ''
   });
 
   // Keep selectedEmployeeId in sync for employees
@@ -174,7 +174,7 @@ export function EmployeeProfile() {
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {employee.role} · {employee.team} · {employee.currentLevel}
+              {employee.role}
               <span className="mx-1.5">·</span>
               Joined {format(new Date(employee.startDate), 'MMM yyyy')}
             </p>

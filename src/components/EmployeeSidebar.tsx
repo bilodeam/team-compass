@@ -1,5 +1,5 @@
 import { useStore } from '@/store/useStore';
-import { Users, Target, Plus, CheckSquare, AlertCircle } from 'lucide-react';
+import { Users, Target, Plus, CheckSquare, AlertCircle, ClipboardList } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -40,14 +40,22 @@ export function EmployeeSidebar() {
         <p className="text-xs text-muted-foreground mt-1">6 direct reports</p>
       </div>
 
-      <div className="p-3 border-b border-border">
-        <Button 
-          variant="default" 
-          className="w-full justify-start gap-2" 
+      <div className="p-3 border-b border-border space-y-1.5">
+        <Button
+          variant="default"
+          className="w-full justify-start gap-2"
           onClick={() => navigate('/team')}
         >
           <Target className="h-4 w-4" />
           Team Overview
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2"
+          onClick={() => navigate('/goals-survey')}
+        >
+          <ClipboardList className="h-4 w-4" />
+          Goals Survey
         </Button>
       </div>
 
@@ -82,7 +90,7 @@ export function EmployeeSidebar() {
 
       <div className="border-t border-border p-3">
         <div className="flex items-center justify-between mb-2">
-          <button 
+          <button
             onClick={() => navigate('/goals')}
             className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
           >
@@ -167,7 +175,7 @@ export function EmployeeSidebar() {
 
       <div className={cn("p-3", teamGoals.length > 0 && "border-t border-border")}>
         <div className="flex items-center justify-between mb-2">
-          <button 
+          <button
             onClick={() => navigate('/actions')}
             className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
           >
@@ -180,7 +188,7 @@ export function EmployeeSidebar() {
             )}
           </button>
         </div>
-        
+
         {overdueCount > 0 && (
           <div className="flex items-center gap-1.5 p-2 rounded-md bg-destructive/10 border border-destructive/20 mb-2">
             <AlertCircle className="h-3 w-3 text-destructive shrink-0" />
@@ -189,7 +197,7 @@ export function EmployeeSidebar() {
             </span>
           </div>
         )}
-        
+
         <div className="space-y-1.5 max-h-32 overflow-y-auto">
           {pendingItems.length === 0 ? (
             <p className="text-xs text-muted-foreground">No pending items</p>
@@ -222,7 +230,6 @@ export function EmployeeSidebar() {
           )}
         </div>
       </div>
-
 
       <div className={cn("p-4", pendingItems.length > 0 && "border-t border-border")}>
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Private · Local Only</p>

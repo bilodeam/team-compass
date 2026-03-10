@@ -122,8 +122,8 @@ export default function LoginPage() {
                       M
                     </div>
                     <div className="text-center">
-                      <div className="text-sm font-semibold">Manager</div>
-                      <div className="text-xs text-muted-foreground">Team Lead</div>
+                      <div className="text-sm font-semibold">Maxence</div>
+                      <div className="text-xs text-muted-foreground">Manager</div>
                     </div>
                   </button>
                 </div>

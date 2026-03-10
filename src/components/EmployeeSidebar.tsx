@@ -213,9 +213,7 @@ export function EmployeeSidebar() {
             </Dialog>
           </div>
           <div className="space-y-1.5 max-h-32 overflow-y-auto">
-            {teamGoals.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No team goals yet</p>
-            ) : (
+            {teamGoals.length === 0 ? null : (
               teamGoals.map((goal) => {
                 const statusColors = {
                   'on-track': 'bg-green-500/10 text-green-700',

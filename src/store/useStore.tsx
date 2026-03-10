@@ -3,23 +3,50 @@ import {
   Employee, Goal, OneOnOne, Achievement, PerformanceNote,
   CareerGrowth, Skill, MoodCheckin, ActionItem, ModuleConfig, DEFAULT_MODULES, TeamGoal
 } from '@/types/employee';
-import { SEED_EMPLOYEES } from '@/data/seedEmployees';
-
-function loadFromStorage<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveToStorage<T>(key: string, value: T) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
 
 function generateId() {
   return Math.random().toString(36).substring(2, 11);
+}
+
+function now() {
+  return new Date().toISOString();
+}
+
+// ─── Map snake_case DB rows to camelCase app types ───────────────────────────
+function mapEmployee(r: any): Employee {
+  return { id: r.id, name: r.name, role: r.role, team: r.team, avatarColor: r.avatar_color, startDate: r.start_date, currentLevel: r.current_level, targetLevel: r.target_level };
+}
+function mapGoal(r: any): Goal {
+  return { id: r.id, employeeId: r.employee_id, title: r.title, description: r.description, status: r.status, progress: r.progress, timeframe: r.timeframe, quarter: r.quarter, linkedOKR: r.linked_okr, createdAt: r.created_at, updatedAt: r.updated_at };
+}
+function mapTeamGoal(r: any): TeamGoal {
+  return { id: r.id, title: r.title, description: r.description, status: r.status, progress: r.progress, timeframe: r.timeframe, quarter: r.quarter, createdAt: r.created_at, updatedAt: r.updated_at };
+}
+function mapOneOnOne(r: any): OneOnOne {
+  return { id: r.id, employeeId: r.employee_id, date: r.date, wentWell: r.went_well, concerns: r.concerns, managerNotes: r.manager_notes, followUps: r.follow_ups, pinned: r.pinned, createdAt: r.created_at };
+}
+function mapAchievement(r: any): Achievement {
+  return { id: r.id, employeeId: r.employee_id, title: r.title, description: r.description, date: r.date, impact: r.impact, tags: r.tags, createdAt: r.created_at };
+}
+function mapPerformanceNote(r: any): PerformanceNote {
+  return { id: r.id, employeeId: r.employee_id, content: r.content, category: r.category, createdAt: r.created_at };
+}
+function mapCareerGrowth(r: any): CareerGrowth {
+  return { id: r.id, employeeId: r.employee_id, currentLevel: r.current_level, targetLevel: r.target_level, readinessScore: r.readiness_score, eligibleBy: r.eligible_by, gaps: r.gaps, evidence: r.evidence, updatedAt: r.updated_at };
+}
+function mapSkill(r: any): Skill {
+  return { id: r.id, employeeId: r.employee_id, name: r.name, rating: r.rating, quarter: r.quarter, updatedAt: r.updated_at };
+}
+function mapMoodCheckin(r: any): MoodCheckin {
+  return { id: r.id, employeeId: r.employee_id, date: r.date, score: r.score, notes: r.notes, createdAt: r.created_at };
+}
+function mapActionItem(r: any): ActionItem {
+  return { id: r.id, employeeId: r.employee_id, title: r.title, owner: r.owner, assignedTo: r.assigned_to, dueDate: r.due_date, status: r.status, sourceOneOnOneId: r.source_one_on_one_id, createdAt: r.created_at, completedAt: r.completed_at };
+}
+function mapModuleConfig(r: any): ModuleConfig {
+  return { type: r.type, label: r.label, emoji: r.emoji, enabled: r.enabled, order: r.order };
 }
 
 interface StoreState {
@@ -35,137 +62,398 @@ interface StoreState {
   moduleConfigs: Record<string, ModuleConfig[]>;
   selectedEmployeeId: string | null;
   teamGoals: TeamGoal[];
+  isLoading: boolean;
 
   setSelectedEmployee: (id: string) => void;
 
-  // CRUD helpers
-  addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateGoal: (id: string, updates: Partial<Goal>) => void;
-  deleteGoal: (id: string) => void;
+  addGoal: (goal: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateGoal: (id: string, updates: Partial<Goal>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
 
-  addTeamGoal: (goal: Omit<TeamGoal, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateTeamGoal: (id: string, updates: Partial<TeamGoal>) => void;
-  deleteTeamGoal: (id: string) => void;
+  addTeamGoal: (goal: Omit<TeamGoal, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateTeamGoal: (id: string, updates: Partial<TeamGoal>) => Promise<void>;
+  deleteTeamGoal: (id: string) => Promise<void>;
 
-  addOneOnOne: (entry: Omit<OneOnOne, 'id' | 'createdAt'>) => void;
-  updateOneOnOne: (id: string, updates: Partial<OneOnOne>) => void;
-  deleteOneOnOne: (id: string) => void;
+  addOneOnOne: (entry: Omit<OneOnOne, 'id' | 'createdAt'>) => Promise<void>;
+  updateOneOnOne: (id: string, updates: Partial<OneOnOne>) => Promise<void>;
+  deleteOneOnOne: (id: string) => Promise<void>;
 
-  addAchievement: (entry: Omit<Achievement, 'id' | 'createdAt'>) => void;
-  updateAchievement: (id: string, updates: Partial<Achievement>) => void;
-  deleteAchievement: (id: string) => void;
+  addAchievement: (entry: Omit<Achievement, 'id' | 'createdAt'>) => Promise<void>;
+  updateAchievement: (id: string, updates: Partial<Achievement>) => Promise<void>;
+  deleteAchievement: (id: string) => Promise<void>;
 
-  addPerformanceNote: (entry: Omit<PerformanceNote, 'id' | 'createdAt'>) => void;
-  deletePerformanceNote: (id: string) => void;
+  addPerformanceNote: (entry: Omit<PerformanceNote, 'id' | 'createdAt'>) => Promise<void>;
+  deletePerformanceNote: (id: string) => Promise<void>;
 
-  updateCareerGrowth: (employeeId: string, data: Partial<CareerGrowth>) => void;
+  updateCareerGrowth: (employeeId: string, data: Partial<CareerGrowth>) => Promise<void>;
 
-  addSkill: (entry: Omit<Skill, 'id' | 'updatedAt'>) => void;
-  updateSkill: (id: string, updates: Partial<Skill>) => void;
-  deleteSkill: (id: string) => void;
+  addSkill: (entry: Omit<Skill, 'id' | 'updatedAt'>) => Promise<void>;
+  updateSkill: (id: string, updates: Partial<Skill>) => Promise<void>;
+  deleteSkill: (id: string) => Promise<void>;
 
-  addMoodCheckin: (entry: Omit<MoodCheckin, 'id' | 'createdAt'>) => void;
-  deleteMoodCheckin: (id: string) => void;
+  addMoodCheckin: (entry: Omit<MoodCheckin, 'id' | 'createdAt'>) => Promise<void>;
+  deleteMoodCheckin: (id: string) => Promise<void>;
 
-  addActionItem: (entry: Omit<ActionItem, 'id' | 'createdAt'>) => void;
-  updateActionItem: (id: string, updates: Partial<ActionItem>) => void;
-  deleteActionItem: (id: string) => void;
+  addActionItem: (entry: Omit<ActionItem, 'id' | 'createdAt'>) => Promise<void>;
+  updateActionItem: (id: string, updates: Partial<ActionItem>) => Promise<void>;
+  deleteActionItem: (id: string) => Promise<void>;
 
   getModuleConfigs: (employeeId: string) => ModuleConfig[];
-  updateModuleConfigs: (employeeId: string, configs: ModuleConfig[]) => void;
+  updateModuleConfigs: (employeeId: string, configs: ModuleConfig[]) => Promise<void>;
 
-  addEmployee: (employee: Omit<Employee, 'id'>) => void;
-  updateEmployee: (id: string, updates: Partial<Employee>) => void;
+  addEmployee: (employee: Omit<Employee, 'id'>) => Promise<void>;
+  updateEmployee: (id: string, updates: Partial<Employee>) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreState | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [employees, setEmployees] = useState<Employee[]>(() => loadFromStorage('em-employees', SEED_EMPLOYEES));
-  const [goals, setGoals] = useState<Goal[]>(() => loadFromStorage('em-goals', []));
-  const [oneOnOnes, setOneOnOnes] = useState<OneOnOne[]>(() => loadFromStorage('em-1on1s', []));
-  const [achievements, setAchievements] = useState<Achievement[]>(() => loadFromStorage('em-achievements', []));
-  const [performanceNotes, setPerformanceNotes] = useState<PerformanceNote[]>(() => loadFromStorage('em-perfnotes', []));
-  const [careerGrowth, setCareerGrowth] = useState<CareerGrowth[]>(() => loadFromStorage('em-career', []));
-  const [skills, setSkills] = useState<Skill[]>(() => loadFromStorage('em-skills', []));
-  const [moodCheckins, setMoodCheckins] = useState<MoodCheckin[]>(() => loadFromStorage('em-mood', []));
-  const [actionItems, setActionItems] = useState<ActionItem[]>(() => loadFromStorage('em-actions', []));
-  const [moduleConfigs, setModuleConfigs] = useState<Record<string, ModuleConfig[]>>(() => loadFromStorage('em-modules', {}));
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(() => loadFromStorage('em-selected', SEED_EMPLOYEES[0]?.id || null));
-  const [teamGoals, setTeamGoals] = useState<TeamGoal[]>(() => loadFromStorage('em-team-goals', []));
+  const { profile, isLoading: authLoading } = useAuth();
 
-  // Persist all state
-  useEffect(() => { saveToStorage('em-employees', employees); }, [employees]);
-  useEffect(() => { saveToStorage('em-goals', goals); }, [goals]);
-  useEffect(() => { saveToStorage('em-1on1s', oneOnOnes); }, [oneOnOnes]);
-  useEffect(() => { saveToStorage('em-achievements', achievements); }, [achievements]);
-  useEffect(() => { saveToStorage('em-perfnotes', performanceNotes); }, [performanceNotes]);
-  useEffect(() => { saveToStorage('em-career', careerGrowth); }, [careerGrowth]);
-  useEffect(() => { saveToStorage('em-skills', skills); }, [skills]);
-  useEffect(() => { saveToStorage('em-mood', moodCheckins); }, [moodCheckins]);
-  useEffect(() => { saveToStorage('em-actions', actionItems); }, [actionItems]);
-  useEffect(() => { saveToStorage('em-modules', moduleConfigs); }, [moduleConfigs]);
-  useEffect(() => { saveToStorage('em-selected', selectedEmployeeId); }, [selectedEmployeeId]);
-  useEffect(() => { saveToStorage('em-team-goals', teamGoals); }, [teamGoals]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [oneOnOnes, setOneOnOnes] = useState<OneOnOne[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [performanceNotes, setPerformanceNotes] = useState<PerformanceNote[]>([]);
+  const [careerGrowth, setCareerGrowth] = useState<CareerGrowth[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [moodCheckins, setMoodCheckins] = useState<MoodCheckin[]>([]);
+  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+  const [moduleConfigs, setModuleConfigs] = useState<Record<string, ModuleConfig[]>>({});
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [teamGoals, setTeamGoals] = useState<TeamGoal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const now = () => new Date().toISOString();
+  // Load all data from Supabase when profile is ready
+  useEffect(() => {
+    if (authLoading || !profile) return;
+    loadAll();
+  }, [profile, authLoading]);
+
+  async function loadAll() {
+    setIsLoading(true);
+    try {
+      const [
+        empRes, goalRes, teamGoalRes, oneOnOneRes, achieveRes,
+        noteRes, careerRes, skillRes, moodRes, actionRes, moduleRes
+      ] = await Promise.all([
+        supabase.from('employees').select('*').order('id'),
+        supabase.from('goals').select('*'),
+        supabase.from('team_goals').select('*'),
+        supabase.from('one_on_ones').select('*'),
+        supabase.from('achievements').select('*'),
+        supabase.from('performance_notes').select('*'),
+        supabase.from('career_growth').select('*'),
+        supabase.from('skills').select('*'),
+        supabase.from('mood_checkins').select('*'),
+        supabase.from('action_items').select('*'),
+        supabase.from('module_configs').select('*'),
+      ]);
+
+      const emps = (empRes.data || []).map(mapEmployee);
+      setEmployees(emps);
+      setGoals((goalRes.data || []).map(mapGoal));
+      setTeamGoals((teamGoalRes.data || []).map(mapTeamGoal));
+      setOneOnOnes((oneOnOneRes.data || []).map(mapOneOnOne));
+      setAchievements((achieveRes.data || []).map(mapAchievement));
+      setPerformanceNotes((noteRes.data || []).map(mapPerformanceNote));
+      setCareerGrowth((careerRes.data || []).map(mapCareerGrowth));
+      setSkills((skillRes.data || []).map(mapSkill));
+      setMoodCheckins((moodRes.data || []).map(mapMoodCheckin));
+      setActionItems((actionRes.data || []).map(mapActionItem));
+
+      // Build moduleConfigs record
+      const configs: Record<string, ModuleConfig[]> = {};
+      (moduleRes.data || []).forEach((r: any) => {
+        if (!configs[r.employee_id]) configs[r.employee_id] = [];
+        configs[r.employee_id].push(mapModuleConfig(r));
+      });
+      setModuleConfigs(configs);
+
+      // Set selected employee
+      if (profile.role === 'employee' && profile.employee_id) {
+        setSelectedEmployeeId(profile.employee_id);
+      } else if (emps.length > 0) {
+        setSelectedEmployeeId(emps[0].id);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const store: StoreState = {
     employees, goals, oneOnOnes, achievements, performanceNotes,
-    careerGrowth, skills, moodCheckins, actionItems, moduleConfigs, selectedEmployeeId, teamGoals,
+    careerGrowth, skills, moodCheckins, actionItems, moduleConfigs,
+    selectedEmployeeId, teamGoals, isLoading,
 
     setSelectedEmployee: setSelectedEmployeeId,
 
-    addGoal: useCallback((goal) => setGoals(prev => [...prev, { ...goal, id: generateId(), createdAt: now(), updatedAt: now() }]), []),
-    updateGoal: useCallback((id, updates) => setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: now() } : g)), []),
-    deleteGoal: useCallback((id) => setGoals(prev => prev.filter(g => g.id !== id)), []),
-
-    addTeamGoal: useCallback((goal) => setTeamGoals(prev => [...prev, { ...goal, id: generateId(), createdAt: now(), updatedAt: now() }]), []),
-    updateTeamGoal: useCallback((id, updates) => setTeamGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: now() } : g)), []),
-    deleteTeamGoal: useCallback((id) => setTeamGoals(prev => prev.filter(g => g.id !== id)), []),
-
-    addOneOnOne: useCallback((entry) => setOneOnOnes(prev => [...prev, { ...entry, id: generateId(), createdAt: now() }]), []),
-    updateOneOnOne: useCallback((id, updates) => setOneOnOnes(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)), []),
-    deleteOneOnOne: useCallback((id) => setOneOnOnes(prev => prev.filter(e => e.id !== id)), []),
-
-    addAchievement: useCallback((entry) => setAchievements(prev => [...prev, { ...entry, id: generateId(), createdAt: now() }]), []),
-    updateAchievement: useCallback((id, updates) => setAchievements(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)), []),
-    deleteAchievement: useCallback((id) => setAchievements(prev => prev.filter(e => e.id !== id)), []),
-
-    addPerformanceNote: useCallback((entry) => setPerformanceNotes(prev => [...prev, { ...entry, id: generateId(), createdAt: now() }]), []),
-    deletePerformanceNote: useCallback((id) => setPerformanceNotes(prev => prev.filter(e => e.id !== id)), []),
-
-    updateCareerGrowth: useCallback((employeeId, data) => {
-      setCareerGrowth(prev => {
-        const existing = prev.find(c => c.employeeId === employeeId);
-        if (existing) {
-          return prev.map(c => c.employeeId === employeeId ? { ...c, ...data, updatedAt: now() } : c);
-        }
-        return [...prev, { id: generateId(), employeeId, currentLevel: '', targetLevel: '', readinessScore: 5, eligibleBy: '', gaps: '', evidence: [], updatedAt: now(), ...data }];
-      });
+    // ── Goals ──────────────────────────────────────────────────────────────
+    addGoal: useCallback(async (goal) => {
+      const id = generateId();
+      const { data } = await supabase.from('goals').insert({
+        id, employee_id: goal.employeeId, title: goal.title, description: goal.description,
+        status: goal.status, progress: goal.progress, timeframe: goal.timeframe,
+        quarter: goal.quarter || '', linked_okr: goal.linkedOKR || '',
+        created_at: now(), updated_at: now(),
+      }).select().single();
+      if (data) setGoals(prev => [...prev, mapGoal(data)]);
     }, []),
 
-    addSkill: useCallback((entry) => setSkills(prev => [...prev, { ...entry, id: generateId(), updatedAt: now() }]), []),
-    updateSkill: useCallback((id, updates) => setSkills(prev => prev.map(s => s.id === id ? { ...s, ...updates, updatedAt: now() } : s)), []),
-    deleteSkill: useCallback((id) => setSkills(prev => prev.filter(s => s.id !== id)), []),
+    updateGoal: useCallback(async (id, updates) => {
+      const { data } = await supabase.from('goals').update({
+        ...(updates.title !== undefined && { title: updates.title }),
+        ...(updates.description !== undefined && { description: updates.description }),
+        ...(updates.status !== undefined && { status: updates.status }),
+        ...(updates.progress !== undefined && { progress: updates.progress }),
+        ...(updates.timeframe !== undefined && { timeframe: updates.timeframe }),
+        ...(updates.quarter !== undefined && { quarter: updates.quarter }),
+        updated_at: now(),
+      }).eq('id', id).select().single();
+      if (data) setGoals(prev => prev.map(g => g.id === id ? mapGoal(data) : g));
+    }, []),
 
-    addMoodCheckin: useCallback((entry) => setMoodCheckins(prev => [...prev, { ...entry, id: generateId(), createdAt: now() }]), []),
-    deleteMoodCheckin: useCallback((id) => setMoodCheckins(prev => prev.filter(e => e.id !== id)), []),
+    deleteGoal: useCallback(async (id) => {
+      await supabase.from('goals').delete().eq('id', id);
+      setGoals(prev => prev.filter(g => g.id !== id));
+    }, []),
 
-    addActionItem: useCallback((entry) => setActionItems(prev => [...prev, { ...entry, id: generateId(), createdAt: now() }]), []),
-    updateActionItem: useCallback((id, updates) => setActionItems(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a)), []),
-    deleteActionItem: useCallback((id) => setActionItems(prev => prev.filter(a => a.id !== id)), []),
+    // ── Team Goals ─────────────────────────────────────────────────────────
+    addTeamGoal: useCallback(async (goal) => {
+      const id = generateId();
+      const { data } = await supabase.from('team_goals').insert({
+        id, title: goal.title, description: goal.description, status: goal.status,
+        progress: goal.progress, timeframe: goal.timeframe, quarter: goal.quarter || '',
+        created_at: now(), updated_at: now(),
+      }).select().single();
+      if (data) setTeamGoals(prev => [...prev, mapTeamGoal(data)]);
+    }, []),
 
+    updateTeamGoal: useCallback(async (id, updates) => {
+      const { data } = await supabase.from('team_goals').update({
+        ...(updates.title !== undefined && { title: updates.title }),
+        ...(updates.description !== undefined && { description: updates.description }),
+        ...(updates.status !== undefined && { status: updates.status }),
+        ...(updates.progress !== undefined && { progress: updates.progress }),
+        ...(updates.timeframe !== undefined && { timeframe: updates.timeframe }),
+        ...(updates.quarter !== undefined && { quarter: updates.quarter }),
+        updated_at: now(),
+      }).eq('id', id).select().single();
+      if (data) setTeamGoals(prev => prev.map(g => g.id === id ? mapTeamGoal(data) : g));
+    }, []),
+
+    deleteTeamGoal: useCallback(async (id) => {
+      await supabase.from('team_goals').delete().eq('id', id);
+      setTeamGoals(prev => prev.filter(g => g.id !== id));
+    }, []),
+
+    // ── One on Ones ────────────────────────────────────────────────────────
+    addOneOnOne: useCallback(async (entry) => {
+      const id = generateId();
+      const { data } = await supabase.from('one_on_ones').insert({
+        id, employee_id: entry.employeeId, date: entry.date, went_well: entry.wentWell,
+        concerns: entry.concerns, manager_notes: entry.managerNotes,
+        follow_ups: entry.followUps, pinned: entry.pinned, created_at: now(),
+      }).select().single();
+      if (data) setOneOnOnes(prev => [...prev, mapOneOnOne(data)]);
+    }, []),
+
+    updateOneOnOne: useCallback(async (id, updates) => {
+      const { data } = await supabase.from('one_on_ones').update({
+        ...(updates.date !== undefined && { date: updates.date }),
+        ...(updates.wentWell !== undefined && { went_well: updates.wentWell }),
+        ...(updates.concerns !== undefined && { concerns: updates.concerns }),
+        ...(updates.managerNotes !== undefined && { manager_notes: updates.managerNotes }),
+        ...(updates.followUps !== undefined && { follow_ups: updates.followUps }),
+        ...(updates.pinned !== undefined && { pinned: updates.pinned }),
+      }).eq('id', id).select().single();
+      if (data) setOneOnOnes(prev => prev.map(e => e.id === id ? mapOneOnOne(data) : e));
+    }, []),
+
+    deleteOneOnOne: useCallback(async (id) => {
+      await supabase.from('one_on_ones').delete().eq('id', id);
+      setOneOnOnes(prev => prev.filter(e => e.id !== id));
+    }, []),
+
+    // ── Achievements ───────────────────────────────────────────────────────
+    addAchievement: useCallback(async (entry) => {
+      const id = generateId();
+      const { data } = await supabase.from('achievements').insert({
+        id, employee_id: entry.employeeId, title: entry.title, description: entry.description,
+        date: entry.date, impact: entry.impact, tags: entry.tags, created_at: now(),
+      }).select().single();
+      if (data) setAchievements(prev => [...prev, mapAchievement(data)]);
+    }, []),
+
+    updateAchievement: useCallback(async (id, updates) => {
+      const { data } = await supabase.from('achievements').update({
+        ...(updates.title !== undefined && { title: updates.title }),
+        ...(updates.description !== undefined && { description: updates.description }),
+        ...(updates.date !== undefined && { date: updates.date }),
+        ...(updates.impact !== undefined && { impact: updates.impact }),
+        ...(updates.tags !== undefined && { tags: updates.tags }),
+      }).eq('id', id).select().single();
+      if (data) setAchievements(prev => prev.map(e => e.id === id ? mapAchievement(data) : e));
+    }, []),
+
+    deleteAchievement: useCallback(async (id) => {
+      await supabase.from('achievements').delete().eq('id', id);
+      setAchievements(prev => prev.filter(e => e.id !== id));
+    }, []),
+
+    // ── Performance Notes ──────────────────────────────────────────────────
+    addPerformanceNote: useCallback(async (entry) => {
+      const id = generateId();
+      const { data } = await supabase.from('performance_notes').insert({
+        id, employee_id: entry.employeeId, content: entry.content,
+        category: entry.category, created_at: now(),
+      }).select().single();
+      if (data) setPerformanceNotes(prev => [...prev, mapPerformanceNote(data)]);
+    }, []),
+
+    deletePerformanceNote: useCallback(async (id) => {
+      await supabase.from('performance_notes').delete().eq('id', id);
+      setPerformanceNotes(prev => prev.filter(e => e.id !== id));
+    }, []),
+
+    // ── Career Growth ──────────────────────────────────────────────────────
+    updateCareerGrowth: useCallback(async (employeeId, data) => {
+      const existing = (await supabase.from('career_growth').select('id').eq('employee_id', employeeId).single()).data;
+      if (existing) {
+        const { data: updated } = await supabase.from('career_growth').update({
+          ...(data.currentLevel !== undefined && { current_level: data.currentLevel }),
+          ...(data.targetLevel !== undefined && { target_level: data.targetLevel }),
+          ...(data.readinessScore !== undefined && { readiness_score: data.readinessScore }),
+          ...(data.eligibleBy !== undefined && { eligible_by: data.eligibleBy }),
+          ...(data.gaps !== undefined && { gaps: data.gaps }),
+          ...(data.evidence !== undefined && { evidence: data.evidence }),
+          updated_at: now(),
+        }).eq('employee_id', employeeId).select().single();
+        if (updated) setCareerGrowth(prev => prev.map(c => c.employeeId === employeeId ? mapCareerGrowth(updated) : c));
+      } else {
+        const id = generateId();
+        const { data: inserted } = await supabase.from('career_growth').insert({
+          id, employee_id: employeeId,
+          current_level: data.currentLevel || '',
+          target_level: data.targetLevel || '',
+          readiness_score: data.readinessScore || 5,
+          eligible_by: data.eligibleBy || '',
+          gaps: data.gaps || '',
+          evidence: data.evidence || [],
+          updated_at: now(),
+        }).select().single();
+        if (inserted) setCareerGrowth(prev => [...prev, mapCareerGrowth(inserted)]);
+      }
+    }, []),
+
+    // ── Skills ─────────────────────────────────────────────────────────────
+    addSkill: useCallback(async (entry) => {
+      const id = generateId();
+      const { data } = await supabase.from('skills').insert({
+        id, employee_id: entry.employeeId, name: entry.name,
+        rating: entry.rating, quarter: entry.quarter, updated_at: now(),
+      }).select().single();
+      if (data) setSkills(prev => [...prev, mapSkill(data)]);
+    }, []),
+
+    updateSkill: useCallback(async (id, updates) => {
+      const { data } = await supabase.from('skills').update({
+        ...(updates.name !== undefined && { name: updates.name }),
+        ...(updates.rating !== undefined && { rating: updates.rating }),
+        ...(updates.quarter !== undefined && { quarter: updates.quarter }),
+        updated_at: now(),
+      }).eq('id', id).select().single();
+      if (data) setSkills(prev => prev.map(s => s.id === id ? mapSkill(data) : s));
+    }, []),
+
+    deleteSkill: useCallback(async (id) => {
+      await supabase.from('skills').delete().eq('id', id);
+      setSkills(prev => prev.filter(s => s.id !== id));
+    }, []),
+
+    // ── Mood Checkins ──────────────────────────────────────────────────────
+    addMoodCheckin: useCallback(async (entry) => {
+      const id = generateId();
+      const { data } = await supabase.from('mood_checkins').insert({
+        id, employee_id: entry.employeeId, date: entry.date,
+        score: entry.score, notes: entry.notes, created_at: now(),
+      }).select().single();
+      if (data) setMoodCheckins(prev => [...prev, mapMoodCheckin(data)]);
+    }, []),
+
+    deleteMoodCheckin: useCallback(async (id) => {
+      await supabase.from('mood_checkins').delete().eq('id', id);
+      setMoodCheckins(prev => prev.filter(e => e.id !== id));
+    }, []),
+
+    // ── Action Items ───────────────────────────────────────────────────────
+    addActionItem: useCallback(async (entry) => {
+      const id = generateId();
+      const { data } = await supabase.from('action_items').insert({
+        id, employee_id: entry.employeeId, title: entry.title, owner: entry.owner,
+        assigned_to: entry.assignedTo || '', due_date: entry.dueDate,
+        status: entry.status, source_one_on_one_id: entry.sourceOneOnOneId || '',
+        created_at: now(), completed_at: '',
+      }).select().single();
+      if (data) setActionItems(prev => [...prev, mapActionItem(data)]);
+    }, []),
+
+    updateActionItem: useCallback(async (id, updates) => {
+      const { data } = await supabase.from('action_items').update({
+        ...(updates.title !== undefined && { title: updates.title }),
+        ...(updates.status !== undefined && { status: updates.status }),
+        ...(updates.dueDate !== undefined && { due_date: updates.dueDate }),
+        ...(updates.owner !== undefined && { owner: updates.owner }),
+        ...(updates.completedAt !== undefined && { completed_at: updates.completedAt }),
+      }).eq('id', id).select().single();
+      if (data) setActionItems(prev => prev.map(a => a.id === id ? mapActionItem(data) : a));
+    }, []),
+
+    deleteActionItem: useCallback(async (id) => {
+      await supabase.from('action_items').delete().eq('id', id);
+      setActionItems(prev => prev.filter(a => a.id !== id));
+    }, []),
+
+    // ── Module Configs ─────────────────────────────────────────────────────
     getModuleConfigs: useCallback((employeeId: string) => {
       return moduleConfigs[employeeId] || [...DEFAULT_MODULES];
     }, [moduleConfigs]),
 
-    updateModuleConfigs: useCallback((employeeId: string, configs: ModuleConfig[]) => {
+    updateModuleConfigs: useCallback(async (employeeId: string, configs: ModuleConfig[]) => {
+      // Delete existing and reinsert
+      await supabase.from('module_configs').delete().eq('employee_id', employeeId);
+      const rows = configs.map(c => ({
+        id: generateId(), employee_id: employeeId,
+        type: c.type, label: c.label, emoji: c.emoji,
+        enabled: c.enabled, order: c.order,
+      }));
+      await supabase.from('module_configs').insert(rows);
       setModuleConfigs(prev => ({ ...prev, [employeeId]: configs }));
     }, []),
 
-    addEmployee: useCallback((employee) => setEmployees(prev => [...prev, { ...employee, id: generateId() }]), []),
-    updateEmployee: useCallback((id, updates) => setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)), []),
+    // ── Employees ──────────────────────────────────────────────────────────
+    addEmployee: useCallback(async (employee) => {
+      const id = generateId();
+      const { data } = await supabase.from('employees').insert({
+        id, name: employee.name, role: employee.role, team: employee.team,
+        avatar_color: employee.avatarColor, start_date: employee.startDate,
+        current_level: employee.currentLevel, target_level: employee.targetLevel,
+      }).select().single();
+      if (data) setEmployees(prev => [...prev, mapEmployee(data)]);
+    }, []),
+
+    updateEmployee: useCallback(async (id, updates) => {
+      const { data } = await supabase.from('employees').update({
+        ...(updates.name !== undefined && { name: updates.name }),
+        ...(updates.role !== undefined && { role: updates.role }),
+        ...(updates.team !== undefined && { team: updates.team }),
+        ...(updates.avatarColor !== undefined && { avatar_color: updates.avatarColor }),
+        ...(updates.startDate !== undefined && { start_date: updates.startDate }),
+        ...(updates.currentLevel !== undefined && { current_level: updates.currentLevel }),
+        ...(updates.targetLevel !== undefined && { target_level: updates.targetLevel }),
+      }).eq('id', id).select().single();
+      if (data) setEmployees(prev => prev.map(e => e.id === id ? mapEmployee(data) : e));
+    }, []),
   };
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;

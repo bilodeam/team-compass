@@ -1,5 +1,5 @@
 import { useStore } from '@/store/useStore';
-import { Users, Target, Plus, CheckSquare, AlertCircle, ClipboardList } from 'lucide-react';
+import { Users, Target, Plus, CheckSquare, AlertCircle, ClipboardList, LogOut } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -11,15 +11,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoalStatus, GoalTimeframe } from '@/types/employee';
+import { useAuth } from '@/lib/auth';
 
 export function EmployeeSidebar() {
   const navigate = useNavigate();
-  const { employees, selectedEmployeeId, setSelectedEmployee, teamGoals, addTeamGoal, updateTeamGoal, deleteTeamGoal, actionItems } = useStore();
+  const { isManager, profile, signOut } = useAuth();
+  const { employees, selectedEmployeeId, setSelectedEmployee, teamGoals, addTeamGoal, actionItems } = useStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: '', description: '', status: 'on-track' as GoalStatus, progress: 0, timeframe: 'quarterly' as GoalTimeframe, quarter: '' });
 
-  // Calculate action items summary
-  const allActionItems = actionItems.map(item => {
+  // For employees, only show their own action items
+  const visibleActionItems = isManager
+    ? actionItems
+    : actionItems.filter(item => item.employeeId === profile?.employee_id);
+
+  const allActionItems = visibleActionItems.map(item => {
     if (item.status !== 'completed' && item.dueDate && isPast(parseISO(item.dueDate))) {
       return { ...item, status: 'overdue' as const };
     }
@@ -27,160 +33,191 @@ export function EmployeeSidebar() {
   });
 
   const pendingItems = allActionItems.filter(item => item.status !== 'completed').slice(0, 5);
-  const overdueItems = allActionItems.filter(item => item.status === 'overdue');
-  const overdueCount = overdueItems.length;
+  const overdueCount = allActionItems.filter(item => item.status === 'overdue').length;
+
+  const currentEmployee = !isManager
+    ? employees.find(e => e.id === profile?.employee_id)
+    : null;
+
+  async function handleSignOut() {
+    await signOut();
+    navigate('/');
+  }
 
   return (
     <aside className="w-64 min-h-screen border-r border-border bg-sidebar flex flex-col">
+
+      {/* Header */}
       <div className="p-5 border-b border-border">
         <h1 className="font-heading text-xl text-sidebar-foreground flex items-center gap-2">
           <Users className="h-5 w-5 text-sidebar-primary" />
-          Team Dashboard
+          Team Compass
         </h1>
-        <p className="text-xs text-muted-foreground mt-1">6 direct reports</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {isManager ? 'Manager view' : currentEmployee?.name || 'Employee view'}
+        </p>
       </div>
 
+      {/* Nav buttons */}
       <div className="p-3 border-b border-border space-y-1.5">
-        <Button
-          variant="default"
-          className="w-full justify-start gap-2"
-          onClick={() => navigate('/team')}
-        >
-          <Target className="h-4 w-4" />
-          Team Overview
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-2"
-          onClick={() => navigate('/goals-survey')}
-        >
+        {isManager && (
+          <Button variant="default" className="w-full justify-start gap-2" onClick={() => navigate('/team')}>
+            <Target className="h-4 w-4" />
+            Team Overview
+          </Button>
+        )}
+        <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/goals-survey')}>
           <ClipboardList className="h-4 w-4" />
           Goals Survey
         </Button>
       </div>
 
-      <nav className="p-3 space-y-1">
-        {employees.map((emp) => {
-          const isActive = emp.id === selectedEmployeeId;
-          const initials = emp.name.split(' ').map(n => n[0]).join('');
-          return (
-            <button
-              key={emp.id}
-              onClick={() => setSelectedEmployee(emp.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 ${
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-soft'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
-              }`}
-            >
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                style={{ backgroundColor: emp.avatarColor, color: 'white' }}
+      {/* Employee list — manager only */}
+      {isManager && (
+        <nav className="p-3 space-y-1">
+          {employees.map((emp) => {
+            const isActive = emp.id === selectedEmployeeId;
+            const initials = emp.name.split(' ').map(n => n[0]).join('');
+            return (
+              <button
+                key={emp.id}
+                onClick={() => setSelectedEmployee(emp.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 ${
+                  isActive
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-soft'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                }`}
               >
-                {initials}
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-medium truncate">{emp.name}</div>
-                <div className="text-xs text-muted-foreground truncate">{emp.role}</div>
-              </div>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                  style={{ backgroundColor: emp.avatarColor, color: 'white' }}
+                >
+                  {initials}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">{emp.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{emp.role}</div>
+                </div>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      {/* Employee self card — employee only */}
+      {!isManager && currentEmployee && (
+        <div className="p-3 border-b border-border">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sidebar-accent">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+              style={{ backgroundColor: currentEmployee.avatarColor, color: 'white' }}
+            >
+              {currentEmployee.name.split(' ').map(n => n[0]).join('')}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate">{currentEmployee.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{currentEmployee.role}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Team Goals — manager only */}
+      {isManager && (
+        <div className="border-t border-border p-3">
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => navigate('/goals')}
+              className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
+            >
+              <Target className="h-3.5 w-3.5 text-sidebar-primary" />
+              Team Goals
             </button>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-border p-3">
-        <div className="flex items-center justify-between mb-2">
-          <button
-            onClick={() => navigate('/goals')}
-            className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
-          >
-            <Target className="h-3.5 w-3.5 text-sidebar-primary" />
-            Team Goals
-          </button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Team Goal</DialogTitle>
-                <DialogDescription>Create a new goal for the entire team</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div>
-                  <Label htmlFor="title">Title</Label>
-                  <Input id="title" value={newGoal.title} onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })} />
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" value={newGoal.description} onChange={(e) => setNewGoal({ ...newGoal, description: e.target.value })} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Team Goal</DialogTitle>
+                  <DialogDescription>Create a new goal for the entire team</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
                   <div>
-                    <Label htmlFor="timeframe">Timeframe</Label>
-                    <Select value={newGoal.timeframe} onValueChange={(v) => setNewGoal({ ...newGoal, timeframe: v as GoalTimeframe })}>
-                      <SelectTrigger id="timeframe">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="quarterly">Quarterly</SelectItem>
-                        <SelectItem value="annual">Annual</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="title">Title</Label>
+                    <Input id="title" value={newGoal.title} onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })} />
                   </div>
                   <div>
-                    <Label htmlFor="quarter">Quarter (optional)</Label>
-                    <Input id="quarter" placeholder="Q1 2026" value={newGoal.quarter} onChange={(e) => setNewGoal({ ...newGoal, quarter: e.target.value })} />
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea id="description" value={newGoal.description} onChange={(e) => setNewGoal({ ...newGoal, description: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="timeframe">Timeframe</Label>
+                      <Select value={newGoal.timeframe} onValueChange={(v) => setNewGoal({ ...newGoal, timeframe: v as GoalTimeframe })}>
+                        <SelectTrigger id="timeframe"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="quarterly">Quarterly</SelectItem>
+                          <SelectItem value="annual">Annual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="quarter">Quarter (optional)</Label>
+                      <Input id="quarter" placeholder="Q1 2026" value={newGoal.quarter} onChange={(e) => setNewGoal({ ...newGoal, quarter: e.target.value })} />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={() => {
-                  addTeamGoal(newGoal);
-                  setNewGoal({ title: '', description: '', status: 'on-track', progress: 0, timeframe: 'quarterly', quarter: '' });
-                  setDialogOpen(false);
-                }}>Add Goal</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-        <div className="space-y-1.5 max-h-32 overflow-y-auto">
-          {teamGoals.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No team goals yet</p>
-          ) : (
-            teamGoals.map((goal) => {
-              const statusColors = {
-                'on-track': 'bg-green-500/10 text-green-700',
-                'at-risk': 'bg-yellow-500/10 text-yellow-700',
-                'done': 'bg-blue-500/10 text-blue-700',
-                'blocked': 'bg-red-500/10 text-red-700',
-              };
-              return (
-                <div key={goal.id} className="bg-sidebar-accent/30 rounded p-2 text-xs">
-                  <div className="font-medium text-sidebar-foreground truncate">{goal.title}</div>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusColors[goal.status]}`}>
-                      {goal.status}
-                    </span>
-                    <span className="text-muted-foreground">{goal.progress}%</span>
+                <DialogFooter>
+                  <Button onClick={() => {
+                    addTeamGoal(newGoal);
+                    setNewGoal({ title: '', description: '', status: 'on-track', progress: 0, timeframe: 'quarterly', quarter: '' });
+                    setDialogOpen(false);
+                  }}>Add Goal</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <div className="space-y-1.5 max-h-32 overflow-y-auto">
+            {teamGoals.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No team goals yet</p>
+            ) : (
+              teamGoals.map((goal) => {
+                const statusColors = {
+                  'on-track': 'bg-green-500/10 text-green-700',
+                  'at-risk': 'bg-yellow-500/10 text-yellow-700',
+                  'done': 'bg-blue-500/10 text-blue-700',
+                  'blocked': 'bg-red-500/10 text-red-700',
+                };
+                return (
+                  <div key={goal.id} className="bg-sidebar-accent/30 rounded p-2 text-xs">
+                    <div className="font-medium text-sidebar-foreground truncate">{goal.title}</div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusColors[goal.status]}`}>{goal.status}</span>
+                      <span className="text-muted-foreground">{goal.progress}%</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className={cn("p-3", teamGoals.length > 0 && "border-t border-border")}>
+      {/* Action Items */}
+      <div className={cn("p-3 border-t border-border")}>
         <div className="flex items-center justify-between mb-2">
           <button
-            onClick={() => navigate('/actions')}
-            className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
+            onClick={() => isManager ? navigate('/actions') : undefined}
+            className={cn(
+              "text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 transition-colors",
+              isManager && "hover:text-sidebar-primary cursor-pointer"
+            )}
           >
             <CheckSquare className="h-3.5 w-3.5 text-sidebar-primary" />
-            Key Actions
+            {isManager ? 'Key Actions' : 'My Actions'}
             {overdueCount > 0 && (
               <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full">
                 {overdueCount}
@@ -211,8 +248,8 @@ export function EmployeeSidebar() {
                     {item.title}
                   </div>
                   <div className="flex items-center justify-between mt-1 text-[10px] text-muted-foreground">
-                    <span>{employee?.name || 'Unknown'}</span>
-                    <span>{item.owner === 'manager' ? 'You' : 'Employee'}</span>
+                    {isManager && <span>{employee?.name || 'Unknown'}</span>}
+                    <span>{item.owner === 'manager' ? (isManager ? 'You' : 'Manager') : 'You'}</span>
                   </div>
                   {item.dueDate && (
                     <div className={`text-[10px] mt-0.5 ${isOverdue ? 'text-destructive' : 'text-muted-foreground'}`}>
@@ -223,16 +260,28 @@ export function EmployeeSidebar() {
               );
             })
           )}
-          {actionItems.filter(item => item.status !== 'completed').length > 5 && (
+          {visibleActionItems.filter(item => item.status !== 'completed').length > 5 && (
             <p className="text-[10px] text-muted-foreground">
-              +{actionItems.filter(item => item.status !== 'completed').length - 5} more items
+              +{visibleActionItems.filter(item => item.status !== 'completed').length - 5} more items
             </p>
           )}
         </div>
       </div>
 
-      <div className={cn("p-4", pendingItems.length > 0 && "border-t border-border")}>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Private · Local Only</p>
+      {/* Footer — sign out */}
+      <div className="mt-auto border-t border-border p-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleSignOut}
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </Button>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-2 px-2">
+          {isManager ? 'Manager · Team Compass' : 'Employee · Team Compass'}
+        </p>
       </div>
     </aside>
   );

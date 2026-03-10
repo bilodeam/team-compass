@@ -1,5 +1,5 @@
 import { useStore } from '@/store/useStore';
-import { Users, Target, Plus, CheckSquare, AlertCircle, ClipboardList, LogOut } from 'lucide-react';
+import { Users, Target, Plus, CheckSquare, AlertCircle, ClipboardList, LogOut, KeyRound } from 'lucide-react';
 import { format, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoalStatus, GoalTimeframe } from '@/types/employee';
 import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export function EmployeeSidebar() {
   const navigate = useNavigate();
@@ -20,7 +21,38 @@ export function EmployeeSidebar() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newGoal, setNewGoal] = useState({ title: '', description: '', status: 'on-track' as GoalStatus, progress: 0, timeframe: 'quarterly' as GoalTimeframe, quarter: '' });
 
-  // For employees, only show their own action items
+  // Change password state
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwForm, setPwForm] = useState({ newPassword: '', confirm: '' });
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+
+  async function handleChangePassword() {
+    setPwError('');
+    if (pwForm.newPassword.length < 4) {
+      setPwError('Password must be at least 4 characters');
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirm) {
+      setPwError('Passwords do not match');
+      return;
+    }
+    setPwLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: pwForm.newPassword });
+    setPwLoading(false);
+    if (error) {
+      setPwError(error.message);
+    } else {
+      setPwSuccess(true);
+      setPwForm({ newPassword: '', confirm: '' });
+      setTimeout(() => {
+        setPwSuccess(false);
+        setPwOpen(false);
+      }, 2000);
+    }
+  }
+
   const visibleActionItems = isManager
     ? actionItems
     : actionItems.filter(item => item.employeeId === profile?.employee_id);
@@ -122,12 +154,12 @@ export function EmployeeSidebar() {
         </div>
       )}
 
-      {/* Team Goals — manager only */}
+      {/* Team Goals — manager only, links to /team */}
       {isManager && (
         <div className="border-t border-border p-3">
           <div className="flex items-center justify-between mb-2">
             <button
-              onClick={() => navigate('/goals')}
+              onClick={() => navigate('/team')}
               className="text-sm font-semibold text-sidebar-foreground flex items-center gap-1.5 hover:text-sidebar-primary transition-colors"
             >
               <Target className="h-3.5 w-3.5 text-sidebar-primary" />
@@ -192,13 +224,17 @@ export function EmployeeSidebar() {
                   'blocked': 'bg-red-500/10 text-red-700',
                 };
                 return (
-                  <div key={goal.id} className="bg-sidebar-accent/30 rounded p-2 text-xs">
+                  <button
+                    key={goal.id}
+                    onClick={() => navigate('/team')}
+                    className="w-full text-left bg-sidebar-accent/30 rounded p-2 text-xs hover:bg-sidebar-accent/50 transition-colors"
+                  >
                     <div className="font-medium text-sidebar-foreground truncate">{goal.title}</div>
                     <div className="flex items-center justify-between mt-1">
                       <span className={`text-[10px] px-1.5 py-0.5 rounded ${statusColors[goal.status]}`}>{goal.status}</span>
                       <span className="text-muted-foreground">{goal.progress}%</span>
                     </div>
-                  </div>
+                  </button>
                 );
               })
             )}
@@ -266,8 +302,62 @@ export function EmployeeSidebar() {
         </div>
       </div>
 
-      {/* Footer — sign out */}
-      <div className="mt-auto border-t border-border p-3">
+      {/* Footer — change password + sign out */}
+      <div className="mt-auto border-t border-border p-3 space-y-1">
+
+        <Dialog open={pwOpen} onOpenChange={(open) => { setPwOpen(open); setPwError(''); setPwSuccess(false); setPwForm({ newPassword: '', confirm: '' }); }}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground">
+              <KeyRound className="h-4 w-4" />
+              Change password
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Password</DialogTitle>
+              <DialogDescription>Enter your new password below.</DialogDescription>
+            </DialogHeader>
+            {pwSuccess ? (
+              <div className="py-6 text-center">
+                <p className="text-emerald-600 font-medium">✓ Password updated successfully!</p>
+              </div>
+            ) : (
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    placeholder="Min. 4 characters"
+                    value={pwForm.newPassword}
+                    onChange={e => { setPwForm(p => ({ ...p, newPassword: e.target.value })); setPwError(''); }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Repeat new password"
+                    value={pwForm.confirm}
+                    onChange={e => { setPwForm(p => ({ ...p, confirm: e.target.value })); setPwError(''); }}
+                    onKeyDown={e => e.key === 'Enter' && handleChangePassword()}
+                  />
+                </div>
+                {pwError && <p className="text-sm text-destructive">{pwError}</p>}
+              </div>
+            )}
+            {!pwSuccess && (
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPwOpen(false)}>Cancel</Button>
+                <Button onClick={handleChangePassword} disabled={pwLoading || !pwForm.newPassword || !pwForm.confirm}>
+                  {pwLoading ? 'Saving…' : 'Update Password'}
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
+
         <Button
           variant="ghost"
           size="sm"
@@ -277,6 +367,7 @@ export function EmployeeSidebar() {
           <LogOut className="h-4 w-4" />
           Sign out
         </Button>
+
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-2 px-2">
           {isManager ? 'Manager · Team Compass' : 'Employee · Team Compass'}
         </p>

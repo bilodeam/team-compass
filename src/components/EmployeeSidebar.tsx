@@ -1,5 +1,5 @@
 import { useStore } from '@/store/useStore';
-import { Users, Target, LogOut, KeyRound } from 'lucide-react';
+import { Users, Target, LogOut, KeyRound, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase';
 export function EmployeeSidebar() {
   const navigate = useNavigate();
   const { employees, selectedEmployeeId, setSelectedEmployee } = useStore();
-  const { signOut } = useAuth();
+  const { signOut, isManager, profile } = useAuth();
 
   const [pwDialogOpen, setPwDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -41,8 +41,18 @@ export function EmployeeSidebar() {
     }
   }
 
+  // Manager: show all employees except emp-0 (Maxence) in the team list
+  // Employee: only show themselves
+  const me = employees.find(e => e.id === profile?.employee_id);
+  const teamList = isManager
+    ? employees.filter(e => e.id !== 'emp-0')
+    : me ? [me] : [];
+
+  const initials = (name: string) => name.split(' ').map(n => n[0]).join('');
+
   return (
     <aside className="w-64 min-h-screen border-r border-border bg-sidebar flex flex-col">
+      {/* Header */}
       <div className="p-5 border-b border-border">
         <h1 className="font-heading text-xl text-sidebar-foreground flex items-center gap-2">
           <Users className="h-5 w-5 text-sidebar-primary" />
@@ -51,21 +61,61 @@ export function EmployeeSidebar() {
         <p className="text-xs text-muted-foreground mt-1">6 direct reports</p>
       </div>
 
-      <div className="p-3 border-b border-border">
-        <Button
-          variant="default"
-          className="w-full justify-start gap-2"
-          onClick={() => navigate('/team')}
-        >
-          <Target className="h-4 w-4" />
-          Team Overview
-        </Button>
-      </div>
+      {/* Manager-only: Team Overview + Goals Survey */}
+      {isManager && (
+        <div className="p-3 border-b border-border space-y-2">
+          <Button
+            variant="default"
+            className="w-full justify-start gap-2"
+            onClick={() => navigate('/team')}
+          >
+            <Target className="h-4 w-4" />
+            Team Overview
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2"
+            onClick={() => navigate('/goals-survey')}
+          >
+            <ClipboardList className="h-4 w-4" />
+            Goals Survey
+          </Button>
+        </div>
+      )}
 
-      <nav className="p-3 space-y-1 flex-1">
-        {employees.map((emp) => {
+      {/* Manager "You" card */}
+      {isManager && me && (
+        <div className="p-3 border-b border-border">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 px-1">You</p>
+          <button
+            onClick={() => setSelectedEmployee(me.id)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 ${
+              me.id === selectedEmployeeId
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-soft'
+                : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+            }`}
+          >
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+              style={{ backgroundColor: me.avatarColor, color: 'white' }}
+            >
+              {initials(me.name)}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate">{me.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{me.role}</div>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Team list */}
+      <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+        {isManager && (
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 px-1">Team</p>
+        )}
+        {teamList.map((emp) => {
           const isActive = emp.id === selectedEmployeeId;
-          const initials = emp.name.split(' ').map(n => n[0]).join('');
           return (
             <button
               key={emp.id}
@@ -80,7 +130,7 @@ export function EmployeeSidebar() {
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
                 style={{ backgroundColor: emp.avatarColor, color: 'white' }}
               >
-                {initials}
+                {initials(emp.name)}
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-medium truncate">{emp.name}</div>
@@ -91,6 +141,7 @@ export function EmployeeSidebar() {
         })}
       </nav>
 
+      {/* Bottom: Change password + Sign out */}
       <div className="p-3 border-t border-border space-y-1">
         <Dialog open={pwDialogOpen} onOpenChange={(o) => { setPwDialogOpen(o); if (!o) { setNewPassword(''); setPwError(''); setPwSuccess(false); } }}>
           <DialogTrigger asChild>

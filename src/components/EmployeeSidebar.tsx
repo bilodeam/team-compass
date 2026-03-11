@@ -86,7 +86,6 @@ export function EmployeeSidebar() {
       {/* Manager "You" card */}
       {isManager && me && (
         <div className="p-3 border-b border-border">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 px-1">You</p>
           <button
             onClick={() => setSelectedEmployee(me.id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 ${

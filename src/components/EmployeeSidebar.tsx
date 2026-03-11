@@ -1,11 +1,45 @@
 import { useStore } from '@/store/useStore';
-import { Users, Target } from 'lucide-react';
+import { Users, Target, LogOut, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export function EmployeeSidebar() {
   const navigate = useNavigate();
   const { employees, selectedEmployeeId, setSelectedEmployee } = useStore();
+  const { signOut } = useAuth();
+
+  const [pwDialogOpen, setPwDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+
+  async function handleChangePassword() {
+    if (newPassword.length < 4) {
+      setPwError('Password must be at least 4 characters');
+      return;
+    }
+    setPwLoading(true);
+    setPwError('');
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPwLoading(false);
+    if (error) {
+      setPwError(error.message);
+    } else {
+      setPwSuccess(true);
+      setNewPassword('');
+      setTimeout(() => {
+        setPwDialogOpen(false);
+        setPwSuccess(false);
+      }, 1500);
+    }
+  }
 
   return (
     <aside className="w-64 min-h-screen border-r border-border bg-sidebar flex flex-col">
@@ -57,8 +91,51 @@ export function EmployeeSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Private · Local Only</p>
+      <div className="p-3 border-t border-border space-y-1">
+        <Dialog open={pwDialogOpen} onOpenChange={(o) => { setPwDialogOpen(o); if (!o) { setNewPassword(''); setPwError(''); setPwSuccess(false); } }}>
+          <DialogTrigger asChild>
+            <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors">
+              <KeyRound className="h-4 w-4 text-muted-foreground" />
+              Change password
+            </button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Password</DialogTitle>
+              <DialogDescription>Enter a new password for your account.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div>
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="Min. 4 characters"
+                  value={newPassword}
+                  onChange={e => { setNewPassword(e.target.value); setPwError(''); }}
+                  onKeyDown={e => e.key === 'Enter' && handleChangePassword()}
+                />
+              </div>
+              {pwError && <p className="text-sm text-destructive">{pwError}</p>}
+              {pwSuccess && <p className="text-sm text-green-600">Password updated!</p>}
+            </div>
+            <DialogFooter>
+              <Button onClick={handleChangePassword} disabled={pwLoading || !newPassword.trim()}>
+                {pwLoading ? 'Saving…' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <button
+          onClick={signOut}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+        >
+          <LogOut className="h-4 w-4 text-muted-foreground" />
+          Sign out
+        </button>
+
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider px-3 pt-2">Private · Local Only</p>
       </div>
     </aside>
   );
